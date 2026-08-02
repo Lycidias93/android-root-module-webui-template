@@ -74,8 +74,10 @@ done
 
 grep -Fq '/data/local/tmp/' module/action.sh
 grep -Fq -- '-token-file' module/action.sh
-grep -Fq "first=$(sed 's/-//g' < /proc/sys/kernel/random/uuid)" module/action.sh
-grep -Fq "second=$(sed 's/-//g' < /proc/sys/kernel/random/uuid)" module/action.sh
+[[ $(grep -Fc "sed 's/-//g' < /proc/sys/kernel/random/uuid" module/action.sh) -eq 2 ]] || {
+  echo "FAIL portable_uuid_filter_missing"
+  exit 1
+}
 if grep -Fq "tr -d '-\\n'" module/action.sh; then
   echo "FAIL busybox_tr_leading_hyphen_token_filter"
   exit 1
