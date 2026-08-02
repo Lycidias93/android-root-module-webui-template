@@ -82,6 +82,20 @@ Adopted patterns:
 
 Termux Python dependency and fixed-port server are not adopted.
 
+## Capability-driven read-only dashboard
+
+For a status/log module, declare only the features that exist:
+
+- `config=false`
+- `actions=false`
+- `jobs=false`
+- `inventory=true` when typed history tables are useful
+- `logs=true`
+
+The shared frontend hides unsupported tabs. The adapter may provide a
+`status.summary` array for module-specific Overview cards, while all rendering,
+session handling and API transport remain in the common core.
+
 ## Template policy
 
 A pattern enters the shared core only when it is:
