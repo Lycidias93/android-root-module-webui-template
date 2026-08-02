@@ -1,0 +1,7 @@
+id=standalone_webui_example
+name=Standalone WebUI Example
+version=v0.1.0
+versionCode=100
+author=Lycidias93
+description=Example root module with an app-free localhost browser WebUI.
+updateJson=

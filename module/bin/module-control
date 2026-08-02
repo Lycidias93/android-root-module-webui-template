@@ -1,0 +1,199 @@
+#!/system/bin/sh
+set -u
+
+BINDIR=${0%/*}
+MODDIR=${BINDIR%/bin}
+CONFIG_DIR="$MODDIR/config"
+CONFIG_FILE="$CONFIG_DIR/module.conf"
+DEFAULT_CONFIG="$CONFIG_DIR/module.conf.default"
+RUN_DIR="$MODDIR/run"
+LOG_DIR="$MODDIR/logs"
+MODULE_LOG="$LOG_DIR/module.log"
+LOCK_DIR="$RUN_DIR/config.lock"
+
+mkdir -p "$CONFIG_DIR" "$RUN_DIR" "$LOG_DIR"
+[ -f "$CONFIG_FILE" ] || cp -f "$DEFAULT_CONFIG" "$CONFIG_FILE"
+
+json_escape() {
+  printf '%s' "$1" | sed     -e 's/\\/\\\\/g'     -e 's/"/\\"/g'     -e ':a;N;$!ba;s/\n/\\n/g'
+}
+
+read_value() {
+  key=$1
+  value=$(sed -n "s/^${key}=//p" "$CONFIG_FILE" | tail -n 1)
+  printf '%s' "$value"
+}
+
+validate_pair() {
+  key=$1
+  value=$2
+  case "$key" in
+    enabled)
+      case "$value" in true|false) return 0 ;; esac
+      ;;
+    mode)
+      case "$value" in balanced|performance|battery) return 0 ;; esac
+      ;;
+    log_level)
+      case "$value" in error|info|debug) return 0 ;; esac
+      ;;
+    interval_seconds)
+      case "$value" in *[!0-9]*|"") return 1 ;; esac
+      [ "$value" -ge 15 ] && [ "$value" -le 3600 ] && return 0
+      ;;
+  esac
+  return 1
+}
+
+acquire_lock() {
+  attempt=0
+  while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    attempt=$((attempt + 1))
+    [ "$attempt" -lt 5 ] || return 1
+    sleep 1
+  done
+}
+
+release_lock() {
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+write_pair_atomic() {
+  key=$1
+  value=$2
+  validate_pair "$key" "$value" || return 1
+  acquire_lock || return 1
+  trap 'release_lock' EXIT INT TERM HUP
+
+  tmp="${CONFIG_FILE}.tmp.$$"
+  found=false
+  : > "$tmp"
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "${key}="*)
+        printf '%s=%s\n' "$key" "$value" >> "$tmp"
+        found=true
+        ;;
+      *)
+        printf '%s\n' "$line" >> "$tmp"
+        ;;
+    esac
+  done < "$CONFIG_FILE"
+
+  if [ "$found" = false ]; then
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  fi
+
+  chmod 0600 "$tmp"
+  mv -f "$tmp" "$CONFIG_FILE"
+  trap - EXIT INT TERM HUP
+  release_lock
+}
+
+print_config_json() {
+  enabled=$(read_value enabled)
+  mode=$(read_value mode)
+  log_level=$(read_value log_level)
+  interval_seconds=$(read_value interval_seconds)
+
+  validate_pair enabled "$enabled" || enabled=true
+  validate_pair mode "$mode" || mode=balanced
+  validate_pair log_level "$log_level" || log_level=info
+  validate_pair interval_seconds "$interval_seconds" || interval_seconds=60
+
+  printf '{"enabled":%s,"mode":"%s","log_level":"%s","interval_seconds":%s}\n'     "$enabled" "$mode" "$log_level" "$interval_seconds"
+}
+
+module_id() {
+  sed -n 's/^id=//p' "$MODDIR/module.prop" | head -n 1
+}
+
+module_version() {
+  sed -n 's/^version=//p' "$MODDIR/module.prop" | head -n 1
+}
+
+log_event() {
+  level=$1
+  shift
+  printf '%s %s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$level" "$*" >> "$MODULE_LOG"
+}
+
+cmd_status() {
+  id=$(json_escape "$(module_id)")
+  version=$(json_escape "$(module_version)")
+  config=$(print_config_json)
+  printf '{"ok":true,"module_id":"%s","module_version":"%s","config":%s}\n'     "$id" "$version" "$config"
+}
+
+cmd_config_set() {
+  [ "$#" -eq 2 ] || return 2
+  key=$1
+  value=$2
+  write_pair_atomic "$key" "$value" || return 2
+  log_event INFO "config updated key=$key"
+  printf '{"ok":true,"key":"%s"}\n' "$(json_escape "$key")"
+}
+
+cmd_log() {
+  lines=${1:-200}
+  case "$lines" in *[!0-9]*|"") return 2 ;; esac
+  [ "$lines" -ge 1 ] && [ "$lines" -le 1000 ] || return 2
+  [ -f "$MODULE_LOG" ] || : > "$MODULE_LOG"
+  tail -n "$lines" "$MODULE_LOG"
+}
+
+cmd_action() {
+  [ "$#" -eq 1 ] || return 2
+  case "$1" in
+    apply)
+      log_event INFO "example apply action requested"
+      printf '{"ok":true,"action":"apply","message":"Replace this example with your module apply logic."}\n'
+      ;;
+    rotate-log)
+      if [ -s "$MODULE_LOG" ]; then
+        mv -f "$MODULE_LOG" "${MODULE_LOG}.1"
+      fi
+      : > "$MODULE_LOG"
+      chmod 0600 "$MODULE_LOG"
+      printf '{"ok":true,"action":"rotate-log"}\n'
+      ;;
+    reset-config)
+      acquire_lock || return 1
+      cp -f "$DEFAULT_CONFIG" "${CONFIG_FILE}.tmp.$$"
+      chmod 0600 "${CONFIG_FILE}.tmp.$$"
+      mv -f "${CONFIG_FILE}.tmp.$$" "$CONFIG_FILE"
+      release_lock
+      log_event INFO "configuration reset"
+      printf '{"ok":true,"action":"reset-config"}\n'
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+case "${1:-}" in
+  status)
+    cmd_status
+    ;;
+  config-get)
+    print_config_json
+    ;;
+  config-set)
+    shift
+    cmd_config_set "$@"
+    ;;
+  log)
+    shift
+    cmd_log "$@"
+    ;;
+  action)
+    shift
+    cmd_action "$@"
+    ;;
+  *)
+    printf '{"ok":false,"error":"unsupported operation"}\n' >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#6750a4">
+  <title>Standalone Module WebUI</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">LOCAL ROOT MODULE</p>
+      <h1>Standalone WebUI</h1>
+    </div>
+    <span id="connectionBadge" class="badge badge-warn">Connecting</span>
+  </header>
+
+  <main>
+    <section class="card hero">
+      <div>
+        <p class="eyebrow">NO COMPANION APP</p>
+        <h2 id="moduleName">Loading module…</h2>
+        <p id="moduleVersion" class="muted">Local server on 127.0.0.1</p>
+      </div>
+      <button id="refreshButton" class="button secondary" type="button">Refresh</button>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CONFIGURATION</p>
+          <h2>Module settings</h2>
+        </div>
+        <span id="dirtyBadge" class="badge hidden">Unsaved</span>
+      </div>
+
+      <form id="configForm">
+        <label class="row toggle-row">
+          <span>
+            <strong>Enabled</strong>
+            <small>Example master switch</small>
+          </span>
+          <input id="enabled" name="enabled" type="checkbox">
+        </label>
+
+        <label class="field">
+          <span>Mode</span>
+          <select id="mode" name="mode">
+            <option value="balanced">Balanced</option>
+            <option value="performance">Performance</option>
+            <option value="battery">Battery</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Log level</span>
+          <select id="logLevel" name="log_level">
+            <option value="error">Error</option>
+            <option value="info">Info</option>
+            <option value="debug">Debug</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Interval in seconds</span>
+          <input id="intervalSeconds" name="interval_seconds" type="number" min="15" max="3600" step="1">
+        </label>
+
+        <div class="actions">
+          <button class="button primary" type="submit">Save settings</button>
+          <button id="resetButton" class="button secondary" type="button">Reset defaults</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ACTIONS</p>
+          <h2>Allowlisted operations</h2>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="applyButton" class="button primary" type="button">Apply now</button>
+        <button id="rotateLogButton" class="button secondary" type="button">Rotate log</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">DIAGNOSTICS</p>
+          <h2>Recent log</h2>
+        </div>
+        <button id="reloadLogButton" class="button text" type="button">Reload</button>
+      </div>
+      <pre id="logOutput" tabindex="0">No log loaded.</pre>
+    </section>
+
+    <section id="fatalPanel" class="card error-card hidden" role="alert">
+      <h2>WebUI unavailable</h2>
+      <p id="fatalMessage"></p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
