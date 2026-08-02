@@ -31,6 +31,7 @@ jobs:
           set -euo pipefail
           target_branch="${PR_HEAD_BRANCH:-${GITHUB_REF_NAME}}"
           test "$target_branch" = 'repo-maintenance/webui-foundation-v02'
+          source_commit="$(git rev-parse HEAD)"
 
           cat .materialize/part*.b64 > /tmp/webui-v02-source.b64
           base64 --decode /tmp/webui-v02-source.b64 > /tmp/webui-v02-source.tar.gz
@@ -40,10 +41,13 @@ jobs:
           git clean -fdx
           tar -xzf /tmp/webui-v02-source.tar.gz -C .
 
+          rm -rf .github/workflows
+          git checkout "$source_commit" -- .github/workflows
+
           test -f CORE_VERSION
           test "$(cat CORE_VERSION)" = '0.2.0'
           test ! -e .materialize
-          test ! -e .github/workflows/materialize-v02.yml
+          test -f .github/workflows/materialize-v02.yml
           git add -A
           git diff --cached --check
 
