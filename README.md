@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.2.0`
+`CORE_VERSION=0.2.1`
 
 | Capability | Included |
 |---|---|
@@ -20,6 +20,8 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 | One-time bootstrap → clean URL + HttpOnly cookie | Yes |
 | Exact Host, loopback peer and same-origin mutation checks | Yes |
 | Capability-driven settings and actions | Yes |
+| Capability-driven read-only navigation | Yes |
+| Adapter-defined Overview summary cards | Yes |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
 | Bounded logs | Yes |
@@ -29,6 +31,8 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Design goals
 
+- Capability-driven tabs for read-only dashboards without empty settings/action views.
+- Adapter-defined Overview summary cards with shared rendering and risk levels.
 - One coherent core for read-only dashboards, settings modules, diagnostics,
   inventories and long-running workflows.
 - Module-specific shell or native logic remains authoritative.

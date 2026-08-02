@@ -15,6 +15,7 @@ class Parser(HTMLParser):
         self.inline_styles = 0
         self.scripts = []
         self.links = []
+        self.features = set()
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -22,6 +23,8 @@ class Parser(HTMLParser):
             self.lang = attrs.get("lang", "")
         if "id" in attrs:
             self.ids.add(attrs["id"])
+        if "data-feature" in attrs:
+            self.features.add(attrs["data-feature"])
         if tag == "script":
             source = attrs.get("src")
             if source:
@@ -58,6 +61,8 @@ if "app.css" not in parser.links:
     failures.append("app_css_missing")
 if 'aria-live="polite"' not in html:
     failures.append("aria_live_missing")
+if parser.features != {"config", "actions", "jobs", "inventory", "logs"}:
+    failures.append(f"features={sorted(parser.features)}")
 
 javascript = (ROOT / "module/webroot/app.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -66,7 +71,13 @@ for endpoint in (
 ):
     if endpoint not in javascript:
         failures.append(f"endpoint={endpoint}")
-for guard in ('credentials: "same-origin"', 'headers.set("X-WebUI-Request", "1")', 'cache: "no-store"'):
+for guard in (
+    'credentials: "same-origin"',
+    'headers.set("X-WebUI-Request", "1")',
+    'cache: "no-store"',
+    'function applyFeatureVisibility()',
+    'Array.isArray(status.summary)',
+):
     if guard not in javascript:
         failures.append(f"guard={guard}")
 for forbidden in ("ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec", "eval(", "new Function"):

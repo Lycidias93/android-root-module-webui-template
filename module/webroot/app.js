@@ -1,15 +1,7 @@
 (() => {
   "use strict";
 
-  const state = {
-    capabilities: null,
-    status: null,
-    config: null,
-    logText: "",
-    jobs: [],
-    polling: null,
-  };
-
+  const state = { capabilities: null, status: null, config: null, logText: "", jobs: [], polling: null };
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
 
@@ -38,11 +30,10 @@
     Object.entries(options).forEach(([key, value]) => {
       if (key === "className") node.className = value;
       else if (key === "text") node.textContent = value;
-      else if (key === "dataset") Object.assign(node.dataset, value);
-      else if (key === "attributes") Object.entries(value).forEach(([name, val]) => node.setAttribute(name, val));
+      else if (key === "attributes") Object.entries(value).forEach(([name, item]) => node.setAttribute(name, item));
       else node[key] = value;
     });
-    for (const child of children) node.append(child);
+    children.forEach(child => node.append(child));
     return node;
   }
 
@@ -77,7 +68,7 @@
         const body = await response.json();
         message = body.error || message;
       } catch {
-        // Preserve the HTTP status when no JSON error is available.
+        // Keep the HTTP status when the body is not JSON.
       }
       throw new Error(message);
     }
@@ -85,36 +76,50 @@
     return contentType.includes("application/json") ? response.json() : response.text();
   }
 
-  function riskClass(risk) {
-    return risk === "danger" ? "danger" : risk === "caution" ? "caution" : "good";
-  }
-
-  function card(label, value, level = "") {
-    return element("div", { className: "card" }, [
-      element("div", { className: "label", text: label }),
-      element("div", { className: `value ${level}`, text: value ?? "—" }),
-    ]);
-  }
-
-  function flattenObject(value, prefix = "") {
-    const output = [];
-    if (!value || typeof value !== "object" || Array.isArray(value)) return output;
-    Object.entries(value).forEach(([key, item]) => {
-      const name = prefix ? `${prefix}.${key}` : key;
-      if (item && typeof item === "object" && !Array.isArray(item)) output.push(...flattenObject(item, name));
-      else output.push([name, Array.isArray(item) ? JSON.stringify(item) : String(item)]);
-    });
-    return output;
+  function activateTab(button) {
+    if (!button || button.hidden) return;
+    $$(".tab").forEach(item => item.classList.remove("active"));
+    $$(".tab-panel").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    $(`#${button.dataset.panel}`)?.classList.add("active");
   }
 
   function wireTabs() {
-    $$(".tab").forEach(button => {
-      button.addEventListener("click", () => {
-        $$(".tab").forEach(item => item.classList.remove("active"));
-        $$(".tab-panel").forEach(item => item.classList.remove("active"));
-        button.classList.add("active");
-        $(`#${button.dataset.panel}`).classList.add("active");
-      });
+    $$(".tab").forEach(button => button.addEventListener("click", () => activateTab(button)));
+  }
+
+  function applyFeatureVisibility() {
+    const features = state.capabilities?.features || {};
+    $$("[data-feature]").forEach(node => {
+      const enabled = features[node.dataset.feature] === true;
+      node.hidden = !enabled;
+      if (!enabled) node.classList.remove("active");
+    });
+    if (!$(".tab.active:not([hidden])")) activateTab($(".tab:not([hidden])"));
+  }
+
+  function level(value) {
+    return ["good", "caution", "danger", "muted"].includes(value) ? value : "";
+  }
+
+  function risk(value) {
+    return value === "danger" ? "danger" : value === "caution" ? "caution" : "good";
+  }
+
+  function card(label, value, cardLevel = "") {
+    return element("div", { className: "card" }, [
+      element("div", { className: "label", text: label }),
+      element("div", { className: `value ${cardLevel}`, text: value ?? "—" }),
+    ]);
+  }
+
+  function flatten(value, prefix = "") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    return Object.entries(value).flatMap(([key, item]) => {
+      const name = prefix ? `${prefix}.${key}` : key;
+      return item && typeof item === "object" && !Array.isArray(item)
+        ? flatten(item, name)
+        : [[name, Array.isArray(item) ? JSON.stringify(item) : String(item)]];
     });
   }
 
@@ -127,18 +132,22 @@
     ui.connectionBadge.className = "badge good";
 
     const config = status.config || {};
-    const summary = [
-      ["Module", module.id],
-      ["Version", module.version],
-      ["Enabled", config.enabled],
-      ["Mode", config.mode],
-      ["Log level", config.log_level],
-      ["Interval", config.interval_seconds ? `${config.interval_seconds}s` : "—"],
+    const declared = Array.isArray(status.summary)
+      ? status.summary.filter(item => item && typeof item.label === "string")
+      : [];
+    const fallback = [
+      { label: "Module", value: module.id },
+      { label: "Version", value: module.version },
+      { label: "Enabled", value: config.enabled },
+      { label: "Mode", value: config.mode },
+      { label: "Log level", value: config.log_level },
+      { label: "Interval", value: config.interval_seconds ? `${config.interval_seconds}s` : "—" },
     ];
-    ui.statusCards.replaceChildren(...summary.map(([label, value]) => card(label, String(value ?? "—"))));
+    const summary = declared.length ? declared : fallback;
+    ui.statusCards.replaceChildren(...summary.map(item => card(item.label, String(item.value ?? "—"), level(item.level))));
 
     const details = element("dl", { className: "details-grid" });
-    flattenObject(status.runtime || {}).forEach(([key, value]) => {
+    flatten(status.runtime || {}).forEach(([key, value]) => {
       details.append(element("dt", { text: key }), element("dd", { text: value }));
     });
     ui.statusDetails.replaceChildren(details);
@@ -149,20 +158,20 @@
     ));
   }
 
-  function fieldInput(definition, value) {
-    let input;
+  function field(definition, value) {
     if (definition.type === "boolean") {
-      input = element("input", { type: "checkbox", checked: Boolean(value), name: definition.key });
+      const input = element("input", { type: "checkbox", checked: Boolean(value), name: definition.key });
       return element("label", { className: "field" }, [
         element("span", { text: definition.label }),
         element("span", { className: "toggle" }, [input, element("small", { text: definition.description || "" })]),
       ]);
     }
+    let input;
     if (definition.type === "enum") {
       input = element("select", { name: definition.key });
-      for (const option of definition.options || []) {
-        input.append(element("option", { value: option.value, text: option.label, selected: option.value === value }));
-      }
+      (definition.options || []).forEach(option => input.append(
+        element("option", { value: option.value, text: option.label, selected: option.value === value })
+      ));
     } else {
       input = element("input", {
         name: definition.key,
@@ -182,38 +191,30 @@
   }
 
   function renderConfig() {
-    const fields = state.capabilities?.config_fields || [];
-    const features = state.capabilities?.features || {};
-    if (!features.config) {
-      ui.configForm.replaceChildren(element("p", { className: "muted", text: "This module does not expose settings." }));
-      ui.saveConfigButton.disabled = true;
-      return;
-    }
-    ui.configForm.replaceChildren(...fields.map(definition => fieldInput(definition, state.config?.[definition.key])));
-    ui.configForm.querySelectorAll("input,select").forEach(input => {
-      input.addEventListener("input", () => ui.dirtyBadge.classList.remove("hidden"));
-    });
+    if (!state.capabilities?.features?.config) return;
+    const fields = state.capabilities.config_fields || [];
+    ui.configForm.replaceChildren(...fields.map(definition => field(definition, state.config?.[definition.key])));
+    ui.configForm.querySelectorAll("input,select").forEach(input =>
+      input.addEventListener("input", () => ui.dirtyBadge.classList.remove("hidden"))
+    );
     ui.saveConfigButton.disabled = false;
   }
 
-  function readConfigForm() {
-    const config = {};
-    for (const definition of state.capabilities?.config_fields || []) {
+  function readConfig() {
+    const value = {};
+    (state.capabilities?.config_fields || []).forEach(definition => {
       const input = ui.configForm.elements.namedItem(definition.key);
-      if (!input) continue;
-      if (definition.type === "boolean") config[definition.key] = input.checked;
-      else if (definition.type === "integer") config[definition.key] = Number(input.value);
-      else config[definition.key] = input.value;
-    }
-    return config;
+      if (!input) return;
+      value[definition.key] = definition.type === "boolean"
+        ? input.checked
+        : definition.type === "integer" ? Number(input.value) : input.value;
+    });
+    return value;
   }
 
   async function saveConfig(event) {
     event.preventDefault();
-    const response = await api("/api/v1/config", {
-      method: "POST",
-      body: JSON.stringify(readConfigForm()),
-    });
+    const response = await api("/api/v1/config", { method: "POST", body: JSON.stringify(readConfig()) });
     state.config = response.config || await api("/api/v1/config");
     ui.dirtyBadge.classList.add("hidden");
     renderConfig();
@@ -223,23 +224,15 @@
 
   function renderActions() {
     const actions = state.capabilities?.actions || [];
-    if (!actions.length) {
-      ui.actionCards.replaceChildren(element("p", { className: "muted", text: "No actions declared." }));
-      return;
-    }
     ui.actionCards.replaceChildren(...actions.map(definition => {
       const dryRun = element("input", { type: "checkbox", checked: Boolean(definition.supports_dry_run) });
       const confirmation = element("input", {
         type: "text",
         placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "",
       });
-      const runButton = element("button", {
-        type: "button",
-        className: riskClass(definition.risk),
-        text: definition.label,
-      });
-      runButton.addEventListener("click", async () => {
-        runButton.disabled = true;
+      const run = element("button", { type: "button", className: risk(definition.risk), text: definition.label });
+      run.addEventListener("click", async () => {
+        run.disabled = true;
         try {
           const result = await api("/api/v1/action", {
             method: "POST",
@@ -254,30 +247,24 @@
         } catch (error) {
           showFatal(error);
         } finally {
-          runButton.disabled = false;
+          run.disabled = false;
         }
       });
       const controls = element("div", { className: "action-controls" });
-      if (definition.supports_dry_run) {
-        controls.append(element("label", { className: "toggle" }, [
-          dryRun,
-          element("span", { text: "Dry-run" }),
-        ]));
-      }
-      if (definition.requires_confirmation) {
-        controls.append(element("label", { className: "field" }, [
-          element("span", { text: "Confirmation" }),
-          confirmation,
-        ]));
-      }
-      controls.append(runButton);
+      if (definition.supports_dry_run) controls.append(element("label", { className: "toggle" }, [
+        dryRun, element("span", { text: "Dry-run" }),
+      ]));
+      if (definition.requires_confirmation) controls.append(element("label", { className: "field" }, [
+        element("span", { text: "Confirmation" }), confirmation,
+      ]));
+      controls.append(run);
       return element("article", { className: "action-card" }, [
         element("header", {}, [
           element("div", {}, [
             element("h3", { text: definition.label }),
             element("p", { className: "muted", text: definition.description || "" }),
           ]),
-          element("span", { className: `badge ${riskClass(definition.risk)}`, text: definition.risk }),
+          element("span", { className: `badge ${risk(definition.risk)}`, text: definition.risk }),
         ]),
         controls,
       ]);
@@ -286,12 +273,8 @@
 
   function renderJobLaunchers() {
     const jobs = state.capabilities?.jobs || [];
-    if (!jobs.length) {
-      ui.jobLaunchers.replaceChildren(element("p", { className: "muted", text: "No background jobs declared." }));
-      return;
-    }
     ui.jobLaunchers.replaceChildren(...jobs.map(definition => {
-      const button = element("button", { type: "button", className: riskClass(definition.risk), text: definition.label });
+      const button = element("button", { type: "button", className: risk(definition.risk), text: definition.label });
       button.addEventListener("click", async () => {
         button.disabled = true;
         try {
@@ -305,30 +288,29 @@
           button.disabled = false;
         }
       });
-      return element("div", { className: "card" }, [
-        element("div", { className: "label", text: definition.risk }),
-        element("div", { className: "value", text: definition.label }),
+      const launcher = card(definition.risk, definition.label, risk(definition.risk));
+      launcher.append(
         element("p", { className: "muted", text: definition.description || "" }),
-        element("div", { className: "actions-row" }, [button]),
-      ]);
+        element("div", { className: "actions-row" }, [button])
+      );
+      return launcher;
     }));
   }
 
-  async function loadJobOutput(job, stream) {
+  async function outputFor(job, stream) {
     const response = await api(`/api/v1/jobs/${job.id}/output?stream=${stream}&offset=0&limit=65536`);
     return response.data?.text || "";
   }
 
   async function renderJobs() {
-    const cards = [];
-    for (const job of state.jobs) {
+    const cards = state.jobs.map(job => {
       const output = element("pre", { className: "job-output", text: "Output not loaded." });
       const load = element("button", { type: "button", text: "Load output" });
       load.addEventListener("click", async () => {
         load.disabled = true;
         try {
-          const stdout = await loadJobOutput(job, "stdout");
-          const stderr = await loadJobOutput(job, "stderr");
+          const stdout = await outputFor(job, "stdout");
+          const stderr = await outputFor(job, "stderr");
           output.textContent = `${stdout}${stderr ? `\n--- stderr ---\n${stderr}` : ""}` || "(no output)";
         } catch (error) {
           output.textContent = error.message;
@@ -336,10 +318,13 @@
           load.disabled = false;
         }
       });
-      cards.push(element("article", { className: "job-card" }, [
+      return element("article", { className: "job-card" }, [
         element("header", {}, [
           element("div", {}, [element("h3", { text: job.name }), element("code", { text: job.id })]),
-          element("span", { className: `badge ${job.status === "success" ? "good" : job.status === "failed" ? "danger" : "caution"}`, text: job.status }),
+          element("span", {
+            className: `badge ${job.status === "success" ? "good" : job.status === "failed" ? "danger" : "caution"}`,
+            text: job.status,
+          }),
         ]),
         element("div", { className: "job-meta" }, [
           element("span", { text: `stdout ${job.stdout_bytes} B` }),
@@ -349,42 +334,37 @@
         ]),
         element("div", { className: "actions-row" }, [load]),
         output,
-      ]));
-    }
-    ui.jobList.replaceChildren(...cards.length ? cards : [element("p", { className: "muted", text: "No jobs in this WebUI session." })]);
+      ]);
+    });
+    ui.jobList.replaceChildren(...(cards.length ? cards : [
+      element("p", { className: "muted", text: "No jobs in this WebUI session." }),
+    ]));
   }
 
   async function refreshJobs() {
     const response = await api("/api/v1/jobs");
     state.jobs = response.data || [];
     await renderJobs();
-    if (!state.jobs.some(job => job.status === "queued" || job.status === "running")) stopJobPolling();
+    if (!state.jobs.some(job => ["queued", "running"].includes(job.status))) stopJobPolling();
   }
 
   function startJobPolling() {
-    if (state.polling) return;
-    state.polling = window.setInterval(() => refreshJobs().catch(showFatal), 1800);
+    if (!state.polling) state.polling = window.setInterval(() => refreshJobs().catch(showFatal), 1800);
   }
 
   function stopJobPolling() {
-    if (!state.polling) return;
-    window.clearInterval(state.polling);
+    if (state.polling) window.clearInterval(state.polling);
     state.polling = null;
   }
 
   function renderInventoryLaunchers() {
     const inventories = state.capabilities?.inventories || [];
-    if (!inventories.length) {
-      ui.inventoryLaunchers.replaceChildren(element("p", { className: "muted", text: "No inventories declared." }));
-      return;
-    }
     ui.inventoryLaunchers.replaceChildren(...inventories.map(definition => {
       const button = element("button", { type: "button", text: definition.label });
       button.addEventListener("click", async () => {
         button.disabled = true;
         try {
-          const response = await api(`/api/v1/inventory?name=${encodeURIComponent(definition.name)}`);
-          renderInventory(response);
+          renderInventory(await api(`/api/v1/inventory?name=${encodeURIComponent(definition.name)}`));
         } catch (error) {
           showFatal(error);
         } finally {
@@ -404,19 +384,17 @@
     }
     const table = element("table");
     table.append(element("thead", {}, [element("tr", {}, columns.map(column => element("th", { text: column })))]));
-    const body = element("tbody");
-    items.forEach(item => body.append(element("tr", {}, columns.map(column => element("td", { text: String(item[column] ?? "") })))));
-    table.append(body);
+    table.append(element("tbody", {}, items.map(item =>
+      element("tr", {}, columns.map(column => element("td", { text: String(item[column] ?? "") })))
+    )));
     ui.inventoryOutput.replaceChildren(table);
   }
 
   function renderLog() {
     const query = ui.logFilter.value.toLowerCase().trim();
-    if (!query) {
-      ui.logOutput.textContent = state.logText || "Log is empty.";
-      return;
-    }
-    ui.logOutput.textContent = state.logText.split("\n").filter(line => line.toLowerCase().includes(query)).join("\n") || "No matching log lines.";
+    ui.logOutput.textContent = query
+      ? state.logText.split("\n").filter(line => line.toLowerCase().includes(query)).join("\n") || "No matching log lines."
+      : state.logText || "Log is empty.";
   }
 
   async function loadLog() {
@@ -432,7 +410,9 @@
   async function refreshAll() {
     await Promise.all([
       refreshStatus(),
-      state.capabilities?.features?.config ? api("/api/v1/config").then(value => { state.config = value; }) : Promise.resolve(),
+      state.capabilities?.features?.config
+        ? api("/api/v1/config").then(value => { state.config = value; })
+        : Promise.resolve(),
       state.capabilities?.features?.logs ? loadLog() : Promise.resolve(),
       state.capabilities?.features?.jobs ? refreshJobs() : Promise.resolve(),
     ]);
@@ -454,13 +434,14 @@
     });
     ui.logFilter.addEventListener("input", renderLog);
 
-    const capabilityResponse = await api("/api/v1/capabilities");
-    state.capabilities = capabilityResponse.capabilities;
+    const response = await api("/api/v1/capabilities");
+    state.capabilities = response.capabilities;
+    applyFeatureVisibility();
     renderActions();
     renderJobLaunchers();
     renderInventoryLaunchers();
     await refreshAll();
-    if (state.jobs.some(job => job.status === "queued" || job.status === "running")) startJobPolling();
+    if (state.jobs.some(job => ["queued", "running"].includes(job.status))) startJobPolling();
   }
 
   initialize().catch(showFatal);
