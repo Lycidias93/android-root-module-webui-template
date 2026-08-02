@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - repo-maintenance/webui-foundation-v02
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -14,15 +17,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out transfer commit
+      - name: Check out transfer branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Verify and materialize source tree
         shell: bash
+        env:
+          PR_HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
+          target_branch="${PR_HEAD_BRANCH:-${GITHUB_REF_NAME}}"
+          test "$target_branch" = 'repo-maintenance/webui-foundation-v02'
+
           cat .materialize/part*.b64 > /tmp/webui-v02-source.b64
           base64 --decode /tmp/webui-v02-source.b64 > /tmp/webui-v02-source.tar.gz
           echo '4f6fd94f389ba18b06effd2898a14be2fa3be5ccb89552b0154fd241569fc95a  /tmp/webui-v02-source.tar.gz' | sha256sum --check --strict -
@@ -41,4 +50,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Build cohesive WebUI foundation v0.2'
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:${target_branch}"
