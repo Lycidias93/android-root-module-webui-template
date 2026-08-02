@@ -1,27 +1,48 @@
 #!/system/bin/sh
 set -u
+umask 077
 
 BINDIR=${0%/*}
-MODDIR=${BINDIR%/bin}
-CONFIG_DIR="$MODDIR/config"
-CONFIG_FILE="$CONFIG_DIR/module.conf"
-DEFAULT_CONFIG="$CONFIG_DIR/module.conf.default"
-RUN_DIR="$MODDIR/run"
-LOG_DIR="$MODDIR/logs"
-MODULE_LOG="$LOG_DIR/module.log"
-LOCK_DIR="$RUN_DIR/config.lock"
+MODDIR=${MODULE_DIR:-${BINDIR%/bin}}
+PROP="$MODDIR/module.prop"
+MODULE_ID=$(sed -n 's/^id=//p' "$PROP" 2>/dev/null | head -n 1)
+MODULE_NAME=$(sed -n 's/^name=//p' "$PROP" 2>/dev/null | head -n 1)
+MODULE_VERSION=$(sed -n 's/^version=//p' "$PROP" 2>/dev/null | head -n 1)
 
-mkdir -p "$CONFIG_DIR" "$RUN_DIR" "$LOG_DIR"
-[ -f "$CONFIG_FILE" ] || cp -f "$DEFAULT_CONFIG" "$CONFIG_FILE"
+case "$MODULE_ID" in ""|*[!A-Za-z0-9._-]*) echo '{"ok":false,"error":"invalid module id"}' >&2; exit 2 ;; esac
+
+STATE_DIR=${MODULE_STATE_DIR:-/data/adb/$MODULE_ID}
+RUNTIME_DIR=${WEBUI_RUNTIME_DIR:-/data/local/tmp/${MODULE_ID}-webui}
+CONFIG_DIR="$STATE_DIR/config"
+CONFIG_FILE="$CONFIG_DIR/module.conf"
+DEFAULT_CONFIG="$MODDIR/config/module.conf.default"
+LOG_DIR="$STATE_DIR/logs"
+MODULE_LOG="$LOG_DIR/module.log"
+LOCK_DIR="$RUNTIME_DIR/config.lock"
+
+mkdir -p "$CONFIG_DIR" "$LOG_DIR" "$RUNTIME_DIR"
+chmod 0700 "$STATE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$RUNTIME_DIR" 2>/dev/null || true
+
+initialize_config() {
+  [ -f "$CONFIG_FILE" ] && return 0
+  tmp="$CONFIG_FILE.tmp.$$"
+  cp -f "$DEFAULT_CONFIG" "$tmp" || return 1
+  chmod 0600 "$tmp"
+  mv -f "$tmp" "$CONFIG_FILE"
+}
+
+initialize_config || {
+  echo '{"ok":false,"error":"config initialization failed"}' >&2
+  exit 1
+}
 
 json_escape() {
-  printf '%s' "$1" | sed     -e 's/\\/\\\\/g'     -e 's/"/\\"/g'     -e ':a;N;$!ba;s/\n/\\n/g'
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a;N;$!ba;s/\n/\\n/g'
 }
 
 read_value() {
   key=$1
-  value=$(sed -n "s/^${key}=//p" "$CONFIG_FILE" | tail -n 1)
-  printf '%s' "$value"
+  sed -n "s/^${key}=//p" "$CONFIG_FILE" 2>/dev/null | tail -n 1
 }
 
 validate_pair() {
@@ -38,19 +59,50 @@ validate_pair() {
       case "$value" in error|info|debug) return 0 ;; esac
       ;;
     interval_seconds)
-      case "$value" in *[!0-9]*|"") return 1 ;; esac
+      case "$value" in ""|*[!0-9]*) return 1 ;; esac
       [ "$value" -ge 15 ] && [ "$value" -le 3600 ] && return 0
       ;;
   esac
   return 1
 }
 
+validated_value() {
+  key=$1
+  value=$(read_value "$key")
+  if validate_pair "$key" "$value"; then
+    printf '%s' "$value"
+    return
+  fi
+  case "$key" in
+    enabled) printf 'true' ;;
+    mode) printf 'balanced' ;;
+    log_level) printf 'info' ;;
+    interval_seconds) printf '60' ;;
+  esac
+}
+
+config_json() {
+  enabled=$(validated_value enabled)
+  mode=$(validated_value mode)
+  log_level=$(validated_value log_level)
+  interval_seconds=$(validated_value interval_seconds)
+  printf '{"enabled":%s,"mode":"%s","log_level":"%s","interval_seconds":%s}' \
+    "$enabled" "$mode" "$log_level" "$interval_seconds"
+}
+
+log_event() {
+  level=$1
+  shift
+  printf '%s %s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date)" "$level" "$*" >> "$MODULE_LOG"
+  chmod 0600 "$MODULE_LOG" 2>/dev/null || true
+}
+
 acquire_lock() {
-  attempt=0
+  attempts=0
   while ! mkdir "$LOCK_DIR" 2>/dev/null; do
-    attempt=$((attempt + 1))
-    [ "$attempt" -lt 5 ] || return 1
-    sleep 1
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 10 ] || return 1
+    sleep 0.1
   done
 }
 
@@ -58,114 +110,184 @@ release_lock() {
   rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 
-write_pair_atomic() {
+request_file_allowed() {
+  path=$1
+  case "$path" in "$RUNTIME_DIR"/requests/*.json) ;; *) return 1 ;; esac
+  [ -f "$path" ] || return 1
+  [ ! -L "$path" ] || return 1
+  size=$(wc -c < "$path" 2>/dev/null || echo 999999)
+  case "$size" in ""|*[!0-9]*) return 1 ;; esac
+  [ "$size" -le 32768 ]
+}
+
+json_bool() {
   key=$1
-  value=$2
-  validate_pair "$key" "$value" || return 1
+  file=$2
+  sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$file" | head -n 1
+}
+
+json_uint() {
+  key=$1
+  file=$2
+  sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$file" | head -n 1
+}
+
+json_string() {
+  key=$1
+  file=$2
+  sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\([^"\\]*\)".*/\1/p' "$file" | head -n 1
+}
+
+apply_config_file() {
+  file=$1
+  request_file_allowed "$file" || return 2
+
+  enabled=$(json_bool enabled "$file")
+  mode=$(json_string mode "$file")
+  log_level=$(json_string log_level "$file")
+  interval_seconds=$(json_uint interval_seconds "$file")
+
+  validate_pair enabled "$enabled" || return 2
+  validate_pair mode "$mode" || return 2
+  validate_pair log_level "$log_level" || return 2
+  validate_pair interval_seconds "$interval_seconds" || return 2
+
   acquire_lock || return 1
   trap 'release_lock' EXIT INT TERM HUP
 
-  tmp="${CONFIG_FILE}.tmp.$$"
-  found=false
-  : > "$tmp"
-
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      "${key}="*)
-        printf '%s=%s\n' "$key" "$value" >> "$tmp"
-        found=true
-        ;;
-      *)
-        printf '%s\n' "$line" >> "$tmp"
-        ;;
-    esac
-  done < "$CONFIG_FILE"
-
-  if [ "$found" = false ]; then
-    printf '%s=%s\n' "$key" "$value" >> "$tmp"
-  fi
-
+  tmp="$CONFIG_FILE.tmp.$$"
+  {
+    printf 'enabled=%s\n' "$enabled"
+    printf 'mode=%s\n' "$mode"
+    printf 'log_level=%s\n' "$log_level"
+    printf 'interval_seconds=%s\n' "$interval_seconds"
+  } > "$tmp"
   chmod 0600 "$tmp"
   mv -f "$tmp" "$CONFIG_FILE"
+
   trap - EXIT INT TERM HUP
   release_lock
+  log_event INFO "configuration updated atomically"
+  printf '{"ok":true,"config":%s}\n' "$(config_json)"
 }
 
-print_config_json() {
-  enabled=$(read_value enabled)
-  mode=$(read_value mode)
-  log_level=$(read_value log_level)
-  interval_seconds=$(read_value interval_seconds)
-
-  validate_pair enabled "$enabled" || enabled=true
-  validate_pair mode "$mode" || mode=balanced
-  validate_pair log_level "$log_level" || log_level=info
-  validate_pair interval_seconds "$interval_seconds" || interval_seconds=60
-
-  printf '{"enabled":%s,"mode":"%s","log_level":"%s","interval_seconds":%s}\n'     "$enabled" "$mode" "$log_level" "$interval_seconds"
+print_capabilities() {
+  printf '{'
+  printf '"schema":"root-module-webui.capabilities.v1",'
+  printf '"module":{"id":"%s","name":"%s","version":"%s"},' \
+    "$(json_escape "$MODULE_ID")" "$(json_escape "$MODULE_NAME")" "$(json_escape "$MODULE_VERSION")"
+  printf '"features":{"config":true,"logs":true,"actions":true,"jobs":true,"inventory":true},'
+  printf '"config_fields":['
+  printf '{"key":"enabled","label":"Enabled","description":"Master switch for the example module.","type":"boolean","required":true},'
+  printf '{"key":"mode","label":"Mode","description":"Example operating profile.","type":"enum","required":true,"options":[{"value":"balanced","label":"Balanced"},{"value":"performance","label":"Performance"},{"value":"battery","label":"Battery"}]},'
+  printf '{"key":"log_level","label":"Log level","description":"Amount of module logging.","type":"enum","required":true,"options":[{"value":"error","label":"Errors only"},{"value":"info","label":"Info"},{"value":"debug","label":"Debug"}]},'
+  printf '{"key":"interval_seconds","label":"Interval","description":"Example interval in seconds.","type":"integer","required":true,"min":15,"max":3600}'
+  printf '],'
+  printf '"actions":['
+  printf '{"name":"apply","label":"Apply now","description":"Runs the example apply path.","risk":"safe","supports_dry_run":true},'
+  printf '{"name":"rotate-log","label":"Rotate log","description":"Moves the current log to module.log.1.","risk":"caution"},'
+  printf '{"name":"reset-config","label":"Reset settings","description":"Restores template defaults.","risk":"danger","supports_dry_run":true,"requires_confirmation":true,"confirmation_text":"RESET"}'
+  printf '],'
+  printf '"jobs":['
+  printf '{"name":"diagnostics","label":"Run diagnostics","description":"Demonstrates a bounded background job.","risk":"safe"},'
+  printf '{"name":"inventory-refresh","label":"Refresh inventory","description":"Demonstrates a longer refresh job.","risk":"caution"}'
+  printf '],'
+  printf '"inventories":[{"name":"examples","label":"Example inventory","description":"Demonstration inventory returned by the module adapter."}]'
+  printf '}\n'
 }
 
-module_id() {
-  sed -n 's/^id=//p' "$MODDIR/module.prop" | head -n 1
+print_status() {
+  printf '{"ok":true,"module":{"id":"%s","name":"%s","version":"%s"},"config":%s,' \
+    "$(json_escape "$MODULE_ID")" "$(json_escape "$MODULE_NAME")" "$(json_escape "$MODULE_VERSION")" "$(config_json)"
+  printf '"runtime":{"state_dir":"%s","webui_runtime_dir":"%s"},' \
+    "$(json_escape "$STATE_DIR")" "$(json_escape "$RUNTIME_DIR")"
+  printf '"safety":{"loopback_only":true,"arbitrary_shell":false,"token_in_argv":false,"boot_dependency":false}}\n'
 }
 
-module_version() {
-  sed -n 's/^version=//p' "$MODDIR/module.prop" | head -n 1
-}
+run_action_file() {
+  name=$1
+  file=$2
+  request_file_allowed "$file" || return 2
+  dry_run=$(json_bool dry_run "$file")
+  [ -n "$dry_run" ] || dry_run=false
+  case "$dry_run" in true|false) ;; *) return 2 ;; esac
+  confirmation=$(json_string confirmation "$file")
 
-log_event() {
-  level=$1
-  shift
-  printf '%s %s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$level" "$*" >> "$MODULE_LOG"
-}
-
-cmd_status() {
-  id=$(json_escape "$(module_id)")
-  version=$(json_escape "$(module_version)")
-  config=$(print_config_json)
-  printf '{"ok":true,"module_id":"%s","module_version":"%s","config":%s}\n'     "$id" "$version" "$config"
-}
-
-cmd_config_set() {
-  [ "$#" -eq 2 ] || return 2
-  key=$1
-  value=$2
-  write_pair_atomic "$key" "$value" || return 2
-  log_event INFO "config updated key=$key"
-  printf '{"ok":true,"key":"%s"}\n' "$(json_escape "$key")"
-}
-
-cmd_log() {
-  lines=${1:-200}
-  case "$lines" in *[!0-9]*|"") return 2 ;; esac
-  [ "$lines" -ge 1 ] && [ "$lines" -le 1000 ] || return 2
-  [ -f "$MODULE_LOG" ] || : > "$MODULE_LOG"
-  tail -n "$lines" "$MODULE_LOG"
-}
-
-cmd_action() {
-  [ "$#" -eq 1 ] || return 2
-  case "$1" in
+  case "$name" in
     apply)
-      log_event INFO "example apply action requested"
-      printf '{"ok":true,"action":"apply","message":"Replace this example with your module apply logic."}\n'
+      if [ "$dry_run" = true ]; then
+        printf '{"ok":true,"action":"apply","dry_run":true,"message":"Apply would run without changing persistent state."}\n'
+      else
+        log_event INFO "example apply action requested"
+        printf '{"ok":true,"action":"apply","dry_run":false,"message":"Example apply completed."}\n'
+      fi
       ;;
     rotate-log)
+      [ "$dry_run" = false ] || return 2
       if [ -s "$MODULE_LOG" ]; then
-        mv -f "$MODULE_LOG" "${MODULE_LOG}.1"
+        mv -f "$MODULE_LOG" "$MODULE_LOG.1"
       fi
       : > "$MODULE_LOG"
       chmod 0600 "$MODULE_LOG"
-      printf '{"ok":true,"action":"rotate-log"}\n'
+      printf '{"ok":true,"action":"rotate-log","dry_run":false}\n'
       ;;
     reset-config)
+      [ "$confirmation" = RESET ] || return 2
+      if [ "$dry_run" = true ]; then
+        printf '{"ok":true,"action":"reset-config","dry_run":true,"message":"Defaults would be restored."}\n'
+        return 0
+      fi
       acquire_lock || return 1
-      cp -f "$DEFAULT_CONFIG" "${CONFIG_FILE}.tmp.$$"
-      chmod 0600 "${CONFIG_FILE}.tmp.$$"
-      mv -f "${CONFIG_FILE}.tmp.$$" "$CONFIG_FILE"
+      trap 'release_lock' EXIT INT TERM HUP
+      tmp="$CONFIG_FILE.tmp.$$"
+      cp -f "$DEFAULT_CONFIG" "$tmp" || return 1
+      chmod 0600 "$tmp"
+      mv -f "$tmp" "$CONFIG_FILE"
+      trap - EXIT INT TERM HUP
       release_lock
-      log_event INFO "configuration reset"
-      printf '{"ok":true,"action":"reset-config"}\n'
+      log_event INFO "configuration reset to defaults"
+      printf '{"ok":true,"action":"reset-config","dry_run":false,"config":%s}\n' "$(config_json)"
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+run_job() {
+  name=$1
+  case "$name" in
+    diagnostics)
+      printf 'phase=preflight status=PASS\n'
+      sleep 1
+      printf 'phase=configuration status=PASS\n'
+      sleep 1
+      printf 'phase=runtime status=PASS\n'
+      printf 'RESULT: EXAMPLE_DIAGNOSTICS_DONE outcome=success command_exit_code=0 workflow_exit_code=0\n'
+      ;;
+    inventory-refresh)
+      printf 'phase=inventory_start status=RUNNING\n'
+      sleep 1
+      printf 'phase=inventory_scan status=PASS items=3\n'
+      sleep 1
+      printf 'RESULT: EXAMPLE_INVENTORY_REFRESH_DONE outcome=success command_exit_code=0 workflow_exit_code=0\n'
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+print_inventory() {
+  name=$1
+  case "$name" in
+    examples)
+      printf '{"ok":true,"name":"examples","generated_at":"%s","columns":["name","state","detail"],"items":[' \
+        "$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date)"
+      printf '{"name":"Primary","state":"ready","detail":"Example inventory row"},'
+      printf '{"name":"Secondary","state":"pending","detail":"Demonstrates status badges"},'
+      printf '{"name":"Protected","state":"locked","detail":"Demonstrates guarded items"}'
+      printf ']}\n'
       ;;
     *)
       return 2
@@ -174,26 +296,40 @@ cmd_action() {
 }
 
 case "${1:-}" in
+  capabilities)
+    print_capabilities
+    ;;
   status)
-    cmd_status
+    print_status
     ;;
   config-get)
-    print_config_json
+    printf '%s\n' "$(config_json)"
     ;;
-  config-set)
-    shift
-    cmd_config_set "$@"
+  config-apply)
+    [ "$#" -eq 2 ] || exit 2
+    apply_config_file "$2"
     ;;
   log)
-    shift
-    cmd_log "$@"
+    lines=${2:-200}
+    case "$lines" in ""|*[!0-9]*) exit 2 ;; esac
+    [ "$lines" -ge 1 ] && [ "$lines" -le 1000 ] || exit 2
+    [ -f "$MODULE_LOG" ] || : > "$MODULE_LOG"
+    tail -n "$lines" "$MODULE_LOG"
     ;;
-  action)
-    shift
-    cmd_action "$@"
+  action-file)
+    [ "$#" -eq 3 ] || exit 2
+    run_action_file "$2" "$3"
+    ;;
+  job-run)
+    [ "$#" -eq 2 ] || exit 2
+    run_job "$2"
+    ;;
+  inventory)
+    [ "$#" -eq 2 ] || exit 2
+    print_inventory "$2"
     ;;
   *)
-    printf '{"ok":false,"error":"unsupported operation"}\n' >&2
+    echo '{"ok":false,"error":"unsupported operation"}' >&2
     exit 2
     ;;
 esac

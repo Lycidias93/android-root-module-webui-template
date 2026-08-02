@@ -1,124 +1,206 @@
 # Android Root Module Standalone WebUI Template
 
-A public starter template for Magisk-compatible root modules with a local WebUI that works **without a companion app**.
+A public foundation for Magisk-compatible root modules with a local browser
+interface that works **without a companion app**.
 
-The module action button starts a short-lived HTTP server bound only to `127.0.0.1`, opens the system browser, and exposes a small allowlisted API to the module backend. KernelSU/APatch-style `webroot/` hosting can be added as an optional second renderer, but it is not required for Magisk users.
+The module Action button starts a short-lived native server on `127.0.0.1`,
+opens the default Android browser, exchanges a one-time bootstrap token for an
+HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
-## Goals
+## Foundation status
 
-- No MMRL, WebUI X, Termux, or custom companion APK required.
-- Entire UI and backend shipped inside the module ZIP.
-- Loopback-only server with a per-session token and idle shutdown.
-- No arbitrary shell execution from JavaScript.
-- Atomic configuration writes and fixed backend actions.
-- Reproducible Android binaries and module ZIPs via GitHub Actions.
-- Explicit upstream credits and retained MIT license notices.
+`CORE_VERSION=0.2.0`
 
-## Current scope
-
-| Capability | Status |
+| Capability | Included |
 |---|---|
-| Magisk `action.sh` → system browser | Included |
-| Loopback-only server | Included |
-| Random per-launch session token | Included |
-| Automatic idle shutdown | Included |
-| Status/config/log API | Included |
-| Allowlisted module actions | Included |
-| Offline responsive UI | Included |
-| arm64-v8a | Included |
-| x86_64 / 32-bit Android | Not included in v0.1; requires an Android NDK/cgo build lane |
-| Native KernelSU/APatch bridge | Planned adapter; standalone browser mode already works |
+| Magisk Action → default browser | Yes |
+| Companion app, Termux, Python, CDN or cloud dependency | No |
+| Loopback-only dynamic port | Yes |
+| Token absent from server argv | Yes |
+| One-time bootstrap → clean URL + HttpOnly cookie | Yes |
+| Exact Host, loopback peer and same-origin mutation checks | Yes |
+| Capability-driven settings and actions | Yes |
+| Bounded background jobs with status and output | Yes |
+| Typed inventory views | Yes |
+| Bounded logs | Yes |
+| ARM64 Android build | Yes |
+| 32-bit/x86 builds | No; intentionally not advertised |
+| WebUI boot dependency | No |
+
+## Design goals
+
+- One coherent core for read-only dashboards, settings modules, diagnostics,
+  inventories and long-running workflows.
+- Module-specific shell or native logic remains authoritative.
+- JavaScript never constructs or executes arbitrary shell commands.
+- Every mutable field and action is validated in both server and module adapter.
+- Runtime session files remain outside the replaceable module directory.
+- Persistent configuration survives module updates under `/data/adb/<module-id>`.
+- A broken WebUI cannot prevent boot or normal module operation.
+- Credits and source provenance stay explicit.
+
+## Runtime flow
+
+```text
+Module manager Action
+        |
+        v
+module/action.sh
+        |
+        +-- creates private /data/local/tmp/<module-id>-webui
+        +-- writes a 0600 one-time token file
+        +-- starts bundled arm64 server on 127.0.0.1:0
+        +-- opens /bootstrap?token=<one-time-token>
+        |
+        v
+server
+        |
+        +-- consumes and deletes token file
+        +-- sets short-lived HttpOnly SameSite=Lax cookie
+        +-- redirects to clean /
+        +-- serves offline UI and typed /api/v1 endpoints
+        |
+        v
+module/bin/module-control
+        |
+        +-- capabilities
+        +-- status
+        +-- config-get / config-apply
+        +-- log
+        +-- action-file
+        +-- job-run
+        +-- inventory
+```
+
+The server invokes `module-control` with an argument array. It never evaluates
+shell text supplied by the browser.
 
 ## Repository layout
 
 ```text
-module/                 Module files packaged into the ZIP
-server/                 Small Go HTTP server
-scripts/build.sh        Builds Android binaries and module ZIP
-scripts/verify.sh       Syntax, policy, Go, and cross-build checks
-docs/                   Architecture, security model, and setup notes
-third_party/licenses/   Retained upstream MIT licenses
-UPSTREAMS.md            Pinned source credits and adaptation notes
+CORE_VERSION                     Version of the reusable core
+core/manifest.txt                Files managed by core synchronization
+module/action.sh                 Secure browser launcher
+module/bin/module-control        Example module-owned adapter
+module/config/*.default          Packaged defaults only
+module/webroot/                  Generic capability-driven UI
+server/cmd/webui-server/         Native loopback server and tests
+scripts/sync-core.sh             Plan/apply core updates to another repo
+scripts/verify.sh                Policy, syntax, unit and integration checks
+scripts/build.sh                 ARM64 module ZIP + build manifest
+docs/                            API, architecture, migration and security
+third_party/licenses/            Retained upstream MIT licenses
 ```
 
-## Start a module from this template
+## Create a module
 
-1. Create a repository from this template.
+1. Use **Use this template** on GitHub.
 2. Edit `module/module.prop`.
-3. Replace the example behavior in `module/bin/module-control`.
-4. Adjust the UI in `module/webroot/`.
-5. Run:
+3. Replace the example implementation in `module/bin/module-control`.
+4. Keep its `capabilities` document aligned with implemented operations.
+5. Replace example defaults in `module/config/module.conf.default`.
+6. Keep the generic UI, or extend it through reviewed capability-schema changes.
+7. Run:
 
-```bash
+```text
 ./scripts/verify.sh
 ./scripts/build.sh
 ```
 
-The installable ZIP and checksum are written to `dist/`.
+The installable ZIP and `build-manifest.json` are written to `dist/`. The
+manifest records SHA-256 and size without publishing a per-ZIP `.sha256`
+sidecar.
 
-## End-user flow
+## Module adapter boundary
 
-1. Install the generated ZIP in Magisk, KernelSU, or APatch.
-2. Reboot if the module itself requires it.
-3. Open the module manager and press the module **Action** button.
-4. The default browser opens the local WebUI.
-5. The local server exits after the configured idle timeout.
-
-The server never listens on Wi-Fi, mobile data, Tailscale, or another network interface.
-
-## Backend contract
-
-The server never runs user-provided command strings. It invokes only:
+The core understands only these fixed operations:
 
 ```text
-module/bin/module-control status
-module/bin/module-control config-get
-module/bin/module-control config-set <allowed-key> <validated-value>
-module/bin/module-control log <validated-line-count>
-module/bin/module-control action <allowlisted-action>
+module-control capabilities
+module-control status
+module-control config-get
+module-control config-apply <server-created-request-file>
+module-control log <validated-line-count>
+module-control action-file <declared-action> <server-created-request-file>
+module-control job-run <declared-job>
+module-control inventory <declared-inventory>
 ```
 
-Keep this contract narrow. Add new functionality by extending both allowlists and validation, not by adding a generic command endpoint.
+The request files are created under the private WebUI runtime directory and
+removed after use. A module adapter must reject files outside that directory,
+revalidate all values, and use atomic persistent writes.
 
-## Template defaults
+See [API contract](docs/API_CONTRACT.md) and
+[module migration guide](docs/MIGRATION_GUIDE.md).
 
-The example configuration contains:
+## Background jobs
 
-- `enabled=true|false`
-- `mode=balanced|performance|battery`
-- `log_level=error|info|debug`
-- `interval_seconds=15..3600`
+The server owns job identity and lifecycle:
 
-These are demonstration values. Replace them with fields relevant to your module.
+- at most a configured number of concurrent jobs;
+- fixed module-declared job names;
+- context timeout;
+- bounded stdout and stderr;
+- explicit `queued`, `running`, `success`, or `failed` state;
+- no false percentage progress;
+- the idle shutdown waits for active jobs.
 
-## Build requirements
+Backup, restore, retention, scans and debug collection can therefore run
+without holding an HTTP request open.
 
-- Bash
-- Go as declared in `go.mod`
-- `zip` and `unzip`
-- `sha256sum`
+## Reusing the core in existing projects
 
-GitHub Actions installs Go automatically and uploads the built ZIP as a workflow artifact.
+A generated project can periodically import reviewed core updates:
 
-## Security
+```text
+./scripts/sync-core.sh /path/to/module-repository
+./scripts/sync-core.sh --apply /path/to/module-repository
+```
 
-Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) before extending the API.
+The target must be a clean Git worktree. The script copies only files listed in
+`core/manifest.txt` and writes `webui.lock`. It does not overwrite
+`module-control`, `module.prop`, module services or module documentation.
 
-Key rules:
+See [core synchronization](docs/CORE_SYNC.md).
 
-- Keep the listener on `127.0.0.1`.
-- Keep token authentication enabled.
-- Never expose a generic shell endpoint.
-- Validate every key, value, action, path, and size at both API and backend layers.
-- Keep the server action-triggered; do not run it permanently at boot.
-- Keep the WebUI optional so a UI failure cannot block module boot.
+## Recommended migration order
+
+1. Read-only status/log modules.
+2. Small settings and control modules.
+3. Modules with scans, diagnostics or other jobs.
+4. Inventory and retention workflows.
+5. Restore, destructive actions and high-risk tuning only after dry-run,
+   readiness and exact-confirmation contracts are proven.
+
+The specific patterns extracted from existing Lycidias93 projects are recorded
+in [PATTERN_LIBRARY.md](docs/PATTERN_LIBRARY.md).
+
+## Security invariants
+
+A contribution must not:
+
+- bind to `0.0.0.0`, Wi-Fi, mobile, Tailscale or another network interface;
+- put bootstrap or session secrets in server argv;
+- add a generic command or unrestricted path endpoint;
+- bypass exact Origin checks for mutations;
+- package live config, logs, session state or private values;
+- make the WebUI start at boot;
+- fetch scripts, fonts, analytics or UI dependencies from the network;
+- claim unsupported ABIs.
+
+Review [SECURITY_MODEL.md](docs/SECURITY_MODEL.md) before extending the core.
 
 ## Credits and provenance
 
-This repository is a clean combined implementation informed by several MIT-licensed Android root-module projects. See [CREDITS.md](CREDITS.md), [UPSTREAMS.md](UPSTREAMS.md), and `third_party/licenses/`.
+The foundation combines clean implementations of ideas from several
+MIT-licensed Android root-module projects and first-party patterns from existing
+Lycidias93 modules. Attribution, pinned commits and retained licenses are in
+[CREDITS.md](CREDITS.md), [UPSTREAMS.md](UPSTREAMS.md), `NOTICE`, and
+`third_party/licenses/`.
 
 No upstream project is represented as endorsing this template.
 
 ## License
 
-The original template code is MIT-licensed. Third-party notices remain under their respective MIT license files.
+Original project code is MIT-licensed. Third-party notices remain under their
+respective retained license files.

@@ -1,10 +1,16 @@
 # Contributing
 
-1. Create a focused branch.
-2. Keep the browser API allowlisted.
-3. Add or update tests for validation and security boundaries.
-4. Run `./scripts/verify.sh`.
-5. Run `./scripts/build.sh`.
-6. Update documentation and upstream credits when importing external code.
+1. Create a focused non-default branch.
+2. Keep module semantics in `module/bin/module-control`.
+3. Change core files only when the behavior is useful across multiple modules.
+4. Update `CORE_VERSION` for managed-core or API-contract changes.
+5. Keep the browser API typed and allowlisted.
+6. Add or update unit, WebUI-contract and HTTP-integration tests.
+7. Run `./scripts/verify.sh`.
+8. Run `./scripts/build.sh`.
+9. Update architecture, security, migration and provenance documentation.
+10. Describe rollback and installed-runtime verification in the pull request.
 
-Pull requests should explain the user impact, security impact, validation performed, and rollback path.
+A pull request must not weaken loopback binding, one-time bootstrap, cookie
+authentication, same-origin mutation checks, output limits, adapter
+revalidation or WebUI/boot separation.

@@ -2,23 +2,36 @@
 
 ## Supported versions
 
-Only the latest commit on the default branch is supported until the first tagged release.
+Until a tagged stable release exists, only the latest default-branch core is
+supported.
 
 ## Reporting
 
-Do not publish a working exploit for the root API. Open a private security advisory in the GitHub repository after publication, or contact the repository owner privately.
+Do not publish a working exploit for the root API. Use a private GitHub security
+advisory or contact the repository owner privately.
 
-## Security invariants
+Include:
 
-A change must not be merged if it:
+- affected core commit and version;
+- Android/root-manager context;
+- exact endpoint and request class;
+- whether another local app, browser origin or network peer is required;
+- minimal reproduction without private device data;
+- proposed mitigation when known.
 
-- binds the server to a non-loopback address;
-- disables session-token authentication;
-- adds arbitrary command execution;
-- accepts unrestricted filesystem paths;
-- writes configuration without validation and atomic replacement;
-- keeps the server permanently running at boot;
-- allows the WebUI to become a boot dependency;
-- introduces remote scripts, fonts, analytics, or CDN assets.
+## Non-negotiable invariants
+
+A change must not:
+
+- bind outside exact IPv4 loopback;
+- place bootstrap/session secrets in argv or persistent browser storage;
+- add arbitrary shell execution or unrestricted filesystem paths;
+- accept mutations without exact Origin and request-guard checks;
+- write configuration without server and adapter validation;
+- package live config, logs or secrets;
+- keep the server running permanently;
+- make WebUI availability a boot dependency;
+- introduce remote scripts, fonts, analytics or CDN assets;
+- advertise ABIs not built and verified.
 
 See `docs/SECURITY_MODEL.md`.

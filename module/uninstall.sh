@@ -1,17 +1,25 @@
 #!/system/bin/sh
-MODDIR=${0%/*}
+set -u
 
-if [ -f "$MODDIR/run/webui.pid" ]; then
-  read -r pid < "$MODDIR/run/webui.pid"
-  case "$pid" in
-    *[!0-9]*|"") ;;
-    *)
-      if [ -r "/proc/$pid/cmdline" ] && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq "$MODDIR/bin/webui-server-"; then
-        kill "$pid" 2>/dev/null
-      fi
-      ;;
-  esac
+MODDIR=${0%/*}
+MODULE_ID=$(sed -n 's/^id=//p' "$MODDIR/module.prop" 2>/dev/null | head -n 1)
+case "$MODULE_ID" in ""|*[!A-Za-z0-9._-]*) exit 0 ;; esac
+
+SERVER="$MODDIR/bin/webui-server-arm64"
+RUNTIME_DIR="/data/local/tmp/${MODULE_ID}-webui"
+PID_FILE="$RUNTIME_DIR/server.pid"
+
+if [ -f "$PID_FILE" ]; then
+  PID=$(cat "$PID_FILE" 2>/dev/null || true)
+  case "$PID" in ""|*[!0-9]*) PID="" ;; esac
+  if [ -n "$PID" ] && [ -r "/proc/$PID/cmdline" ] &&
+    tr '\000' ' ' < "/proc/$PID/cmdline" 2>/dev/null | grep -Fq "$SERVER"; then
+    kill "$PID" 2>/dev/null || true
+  fi
 fi
 
-rm -rf "$MODDIR/run"
+rm -rf "$RUNTIME_DIR"
+
+# Persistent data under /data/adb/$MODULE_ID is deliberately retained.
+# Modules may add an explicit, separately confirmed data-removal action.
 exit 0
