@@ -1,0 +1,183 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f2fa;
+  --surface: #fffbfe;
+  --surface-2: #f3edf7;
+  --text: #1d1b20;
+  --muted: #49454f;
+  --primary: #6750a4;
+  --on-primary: #ffffff;
+  --outline: #79747e;
+  --error: #b3261e;
+  --success: #146c43;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141218;
+    --surface: #211f26;
+    --surface-2: #2b2930;
+    --text: #e6e1e5;
+    --muted: #cac4d0;
+    --primary: #d0bcff;
+    --on-primary: #381e72;
+    --outline: #938f99;
+    --error: #f2b8b5;
+    --success: #8bd5b0;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--outline) 35%, transparent);
+}
+
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 1.35rem; }
+h2 { margin-bottom: 8px; font-size: 1.15rem; }
+
+main {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 20px 16px calc(48px + env(safe-area-inset-bottom));
+}
+
+.card {
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 18%, transparent);
+}
+
+.hero, .section-heading, .row, .actions {
+  display: flex;
+  align-items: center;
+}
+
+.hero, .section-heading, .row { justify-content: space-between; gap: 16px; }
+.actions { flex-wrap: wrap; gap: 10px; }
+
+.eyebrow {
+  margin-bottom: 4px;
+  color: var(--primary);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.muted, small { color: var(--muted); }
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-weight: 650;
+}
+
+.toggle-row {
+  min-height: 58px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--outline) 28%, transparent);
+}
+
+input, select, button { font: inherit; }
+
+input[type="number"], select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--outline);
+  border-radius: 14px;
+}
+
+input[type="checkbox"] {
+  width: 44px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+
+.button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.button:disabled { cursor: wait; opacity: .55; }
+.button.primary { background: var(--primary); color: var(--on-primary); }
+.button.secondary { background: var(--surface-2); color: var(--primary); }
+.button.text { background: transparent; color: var(--primary); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.badge-ok { color: var(--success); }
+.badge-warn { color: var(--error); }
+
+pre {
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 14px;
+  background: #111;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: .78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 10;
+  max-width: min(90vw, 520px);
+  transform: translateX(-50%);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: 0 8px 28px color-mix(in srgb, #000 35%, transparent);
+}
+
+.error-card { border: 1px solid var(--error); color: var(--error); }
+.hidden { display: none !important; }
+
+@media (max-width: 520px) {
+  .hero { align-items: flex-start; }
+  .topbar { padding-left: 16px; padding-right: 16px; }
+  .card { border-radius: 20px; padding: 18px; }
+}
