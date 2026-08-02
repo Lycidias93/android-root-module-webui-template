@@ -50,6 +50,10 @@ Supported action and job risk levels:
 - `caution`
 - `danger`
 
+Feature switches also control frontend visibility. A feature set to `false`
+hides its navigation tab and panel, which lets read-only modules reuse the same
+frontend without empty settings or action views.
+
 ## Status
 
 ### `GET /api/v1/status`
@@ -60,11 +64,26 @@ The response is module-defined valid JSON. Recommended top-level keys:
 
 - `ok`
 - `module`
+- `summary`
 - `config`
 - `runtime`
 - `safety`
 - `health`
 - `readiness`
+
+`summary` is optional and allows adapters to define the Overview cards without
+forking the shared frontend:
+
+```json
+[
+  {"label":"Result","value":"PASS","level":"good"},
+  {"label":"Run ID","value":"20260802_230000_boot","level":"muted"}
+]
+```
+
+Supported `level` values are `good`, `caution`, `danger`, and `muted`.
+Adapters should report safety facts as positive assertions whose healthy value
+is `true`, for example `arbitrary_shell_blocked=true`.
 
 ## Configuration
 
