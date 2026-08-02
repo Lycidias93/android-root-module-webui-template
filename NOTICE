@@ -1,28 +1,31 @@
 Android Root Module Standalone WebUI Template
 Copyright (c) 2026 Lycidias93
 
-This project includes design adaptations and may include MIT-licensed portions
-from the projects listed below. Their full license texts are retained in
+This project contains original integration code and design adaptations informed
+by the projects listed below. Their full MIT license texts are retained in
 third_party/licenses/.
 
 F2FS-Optimizer
 Copyright (c) 2025 㐅代号:9527
-Source: https://github.com/Coolapk-Code9527/F2FS-Optimizer
+Source: Coolapk-Code9527/F2FS-Optimizer
 Pinned commit: 651b66b14087b5d60e4b9d3fd69de899a8cd43b8
 
 ksu-webui-demo
 Copyright (c) 2025 KOWX712
-Source: https://github.com/KOWX712/ksu-webui-demo
+Source: KOWX712/ksu-webui-demo
 Pinned commit: 5ff958423202e9af7675e83e8ce57a34d80ddcd9
 
 ksu-webui-module-template
 Copyright (c) 2025 barsikus007
-Source: https://github.com/barsikus007/ksu-webui-module-template
+Source: barsikus007/ksu-webui-module-template
 Pinned commit: 4ec624e2514043064d3b50ff5ec585acff4ffc97
 
 AMMF2
 Copyright (c) 2025 AuroraNasa
-Source: https://github.com/Aurora-Nasa-1/AMMF2
+Source: Aurora-Nasa-1/AMMF2
 Pinned commit: 98d2ef7d0491f6524cee09c958ef239338b49d3c
+
+First-party design sources and pinned commits are documented in UPSTREAMS.md
+and docs/PATTERN_LIBRARY.md.
 
 The upstream authors do not endorse this project.

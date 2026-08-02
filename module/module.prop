@@ -1,7 +1,7 @@
 id=standalone_webui_example
-name=Standalone WebUI Example
-version=v0.1.0
-versionCode=100
+name=Standalone WebUI Foundation Example
+version=v0.2.0
+versionCode=200
 author=Lycidias93
-description=Example root module with an app-free localhost browser WebUI.
+description=App-free localhost WebUI foundation with typed APIs, jobs, inventories, logs, and guarded actions.
 updateJson=
