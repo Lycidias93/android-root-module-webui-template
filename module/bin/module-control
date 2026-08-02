@@ -199,9 +199,19 @@ print_capabilities() {
 print_status() {
   printf '{"ok":true,"module":{"id":"%s","name":"%s","version":"%s"},"config":%s,' \
     "$(json_escape "$MODULE_ID")" "$(json_escape "$MODULE_NAME")" "$(json_escape "$MODULE_VERSION")" "$(config_json)"
+  printf '"summary":['
+  printf '{"label":"Module","value":"%s","level":"good"},' "$(json_escape "$MODULE_ID")"
+  printf '{"label":"Version","value":"%s","level":"muted"},' "$(json_escape "$MODULE_VERSION")"
+  enabled_value=$(validated_value enabled)
+  enabled_level=caution
+  [ "$enabled_value" = true ] && enabled_level=good
+  printf '{"label":"Enabled","value":"%s","level":"%s"},' \
+    "$(json_escape "$enabled_value")" "$enabled_level"
+  printf '{"label":"Mode","value":"%s","level":"muted"}' "$(json_escape "$(validated_value mode)")"
+  printf '],'
   printf '"runtime":{"state_dir":"%s","webui_runtime_dir":"%s"},' \
     "$(json_escape "$STATE_DIR")" "$(json_escape "$RUNTIME_DIR")"
-  printf '"safety":{"loopback_only":true,"arbitrary_shell":false,"token_in_argv":false,"boot_dependency":false}}\n'
+  printf '"safety":{"loopback_only":true,"arbitrary_shell_blocked":true,"token_in_argv_absent":true,"boot_dependency_absent":true}}\n'
 }
 
 run_action_file() {
