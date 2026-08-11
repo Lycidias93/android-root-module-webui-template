@@ -2,6 +2,10 @@ module/action.sh
 module/webroot/index.html
 module/webroot/app.js
 module/webroot/app.css
+module/webroot/v03.js
 server/cmd/webui-server/main.go
 server/cmd/webui-server/main_test.go
+server/cmd/webui-server/v03.go
+server/cmd/webui-server/v03_collection_digest.go
+server/cmd/webui-server/v03_test.go
 scripts/webui-contract-test.py
