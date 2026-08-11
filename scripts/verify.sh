@@ -22,8 +22,13 @@ required=(
   module/webroot/index.html
   module/webroot/app.js
   module/webroot/app.css
+  module/webroot/v03.js
   server/cmd/webui-server/main.go
+  server/cmd/webui-server/v03.go
+  server/cmd/webui-server/v03_collection_digest.go
+  server/cmd/webui-server/v03_test.go
   docs/API_CONTRACT.md
+  docs/IMPORT_EXPORT_CONTRACT_V1.md
   docs/ARCHITECTURE.md
   docs/CORE_SYNC.md
   docs/MIGRATION_GUIDE.md
@@ -97,7 +102,11 @@ grep -Fq 'HttpOnly: true' server/cmd/webui-server/main.go
 grep -Fq 'SameSite: http.SameSiteLaxMode' server/cmd/webui-server/main.go
 grep -Fq 'requestGuardHeader' server/cmd/webui-server/main.go
 grep -Fq 'root-module-webui.capabilities.v1' server/cmd/webui-server/main.go
-if grep -Eq '0\.0\.0\.0|ListenAndServe\(' server/cmd/webui-server/main.go; then
+grep -Fq 'registerV03Handlers(mux, app)' server/cmd/webui-server/main.go
+grep -Fq 'root-module-webui.extensions.v1' server/cmd/webui-server/v03.go
+grep -Fq 'matching unexpired preview required' server/cmd/webui-server/v03.go
+grep -Fq 'file outside private upload directory' server/cmd/webui-server/v03.go
+if grep -Eq '0\.0\.0\.0|ListenAndServe\(' server/cmd/webui-server/main.go server/cmd/webui-server/v03.go; then
   echo "FAIL unsafe_listener_pattern"
   exit 1
 fi
@@ -108,6 +117,10 @@ if grep -RInE 'https?://(cdn|unpkg|jsdelivr|fonts\.googleapis|google-analytics)'
 fi
 if grep -RInE 'ksu\.exec|apatch\.exec|magisk\.exec|webui\.exec|Android\.exec' module/webroot; then
   echo "FAIL root_exec_bridge_in_core_ui"
+  exit 1
+fi
+if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' module/webroot; then
+  echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
 
