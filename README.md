@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.2.2`
+`CORE_VERSION=0.3.0`
 
 | Capability | Included |
 |---|---|
@@ -24,21 +24,32 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 | Adapter-defined Overview summary cards | Yes |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
+| Typed repeated-record/profile editor | Yes, optional v0.3 extension |
+| Preview-bound whole-collection apply | Yes, optional v0.3 extension |
+| Bounded schema-declared import/export | Yes, optional v0.3 extension |
+| Secret/reference/credential export policy metadata | Yes |
 | Bounded logs | Yes |
 | ARM64 Android build | Yes |
 | 32-bit/x86 builds | No; intentionally not advertised |
 | WebUI boot dependency | No |
+
+The v0.3 administration extension is opt-in. Modules that do not implement
+`capabilities-v03` continue to use the same base v1 UI/API and do not show the
+additional Profiles/Backup tabs.
 
 ## Design goals
 
 - Capability-driven tabs for read-only dashboards without empty settings/action views.
 - Adapter-defined Overview summary cards with shared rendering and risk levels.
 - One coherent core for read-only dashboards, settings modules, diagnostics,
-  inventories and long-running workflows.
+  inventories, long-running workflows and typed administration.
+- Repeated records are edited as typed collections, never raw config or shell text.
+- Import is preview-first, bounded and staged only in the private WebUI runtime.
+- Generic export is secret-safe and cannot expose arbitrary device files.
 - Module-specific shell or native logic remains authoritative.
 - JavaScript never constructs or executes arbitrary shell commands.
-- Every mutable field and action is validated in both server and module adapter.
-- Runtime session files remain outside the replaceable module directory.
+- Every mutable value is validated in the server and again at the module/domain boundary.
+- Runtime session/upload/preview files remain outside the replaceable module directory.
 - Persistent configuration survives module updates under `/data/adb/<module-id>`.
 - A broken WebUI cannot prevent boot or normal module operation.
 - Credits and source provenance stay explicit.
@@ -63,6 +74,7 @@ server
         +-- sets short-lived HttpOnly SameSite=Lax cookie
         +-- redirects to clean /
         +-- serves offline UI and typed /api/v1 endpoints
+        +-- optionally exposes v0.3 typed collection/import/export endpoints
         |
         v
 module/bin/module-control
@@ -74,6 +86,9 @@ module/bin/module-control
         +-- action-file
         +-- job-run
         +-- inventory
+        +-- optional capabilities-v03
+        +-- optional collection-get / collection-preview / collection-apply
+        +-- optional import-preview / import-apply / export
 ```
 
 The server invokes `module-control` with an argument array. It never evaluates
@@ -85,9 +100,9 @@ shell text supplied by the browser.
 CORE_VERSION                     Version of the reusable core
 core/manifest.txt                Files managed by core synchronization
 module/action.sh                 Secure browser launcher
-module/bin/module-control        Example module-owned adapter
+module/bin/module-control        Example module-owned base adapter
 module/config/*.default          Packaged defaults only
-module/webroot/                  Generic capability-driven UI
+module/webroot/                  Generic capability-driven UI + optional v0.3 layer
 server/cmd/webui-server/         Native loopback server and tests
 scripts/sync-core.sh             Plan/apply core updates to another repo
 scripts/verify.sh                Policy, syntax, unit and integration checks
@@ -101,10 +116,13 @@ third_party/licenses/            Retained upstream MIT licenses
 1. Use **Use this template** on GitHub.
 2. Edit `module/module.prop`.
 3. Replace the example implementation in `module/bin/module-control`.
-4. Keep its `capabilities` document aligned with implemented operations.
-5. Replace example defaults in `module/config/module.conf.default`.
-6. Keep the generic UI, or extend it through reviewed capability-schema changes.
-7. Run:
+4. Keep its `capabilities` document aligned with implemented base operations.
+5. If typed collections/import/export are needed, implement `capabilities-v03`
+   and only the declared extension operations.
+6. Replace example defaults in `module/config/module.conf.default`.
+7. Keep the generic UI; extend module semantics through the adapter rather than
+   forking browser shell/path behavior.
+8. Run:
 
 ```text
 ./scripts/verify.sh
@@ -117,7 +135,7 @@ sidecar.
 
 ## Module adapter boundary
 
-The core understands only these fixed operations:
+Base operations:
 
 ```text
 module-control capabilities
@@ -130,11 +148,26 @@ module-control job-run <declared-job>
 module-control inventory <declared-inventory>
 ```
 
-The request files are created under the private WebUI runtime directory and
-removed after use. A module adapter must reject files outside that directory,
-revalidate all values, and use atomic persistent writes.
+Optional v0.3 extension operations:
 
-See [API contract](docs/API_CONTRACT.md) and
+```text
+module-control capabilities-v03
+module-control collection-get <declared-collection>
+module-control collection-preview <declared-collection> <private-request-file>
+module-control collection-apply <declared-collection> <private-request-file>
+module-control import-preview <declared-import> <private-upload-file>
+module-control import-apply <declared-import> <private-upload-file> <private-request-file>
+module-control export <declared-export>
+```
+
+The core owns authentication, private staging, byte/field bounds and preview
+binding. The adapter owns domain validation, persistent backup, atomic commit,
+effective-state verification and rollback. A module must reject files outside
+the expected private runtime paths and never turn typed fields into arbitrary
+shell/config channels.
+
+See [API contract](docs/API_CONTRACT.md),
+[import/export contract](docs/IMPORT_EXPORT_CONTRACT_V1.md), and
 [module migration guide](docs/MIGRATION_GUIDE.md).
 
 ## Background jobs
@@ -149,8 +182,9 @@ The server owns job identity and lifecycle:
 - no false percentage progress;
 - the idle shutdown waits for active jobs.
 
-Backup, restore, retention, scans and debug collection can therefore run
-without holding an HTTP request open.
+Expensive diagnostics, scans or backup generation can therefore run without
+holding an HTTP request open. Import preview/apply itself remains a separate
+preview-bound transaction contract rather than a generic background shell job.
 
 ## Reusing the core in existing projects
 
@@ -165,6 +199,9 @@ The target must be a clean Git worktree. The script copies only files listed in
 `core/manifest.txt` and writes `webui.lock`. It does not overwrite
 `module-control`, `module.prop`, module services or module documentation.
 
+Consumer release candidates must pin a concrete template commit/core version;
+do not consume floating `main` silently.
+
 See [core synchronization](docs/CORE_SYNC.md).
 
 ## Recommended migration order
@@ -172,8 +209,9 @@ See [core synchronization](docs/CORE_SYNC.md).
 1. Read-only status/log modules.
 2. Small settings and control modules.
 3. Modules with scans, diagnostics or other jobs.
-4. Inventory and retention workflows.
-5. Restore, destructive actions and high-risk tuning only after dry-run,
+4. Typed inventories and repeated-record/profile administration.
+5. Secret-safe configuration import/export with preview and rollback.
+6. Restore, destructive actions and high-risk tuning only after dry-run,
    readiness and exact-confirmation contracts are proven.
 
 The specific patterns extracted from existing Lycidias93 projects are recorded
@@ -185,8 +223,10 @@ A contribution must not:
 
 - bind to `0.0.0.0`, Wi-Fi, mobile, Tailscale or another network interface;
 - put bootstrap or session secrets in server argv;
-- add a generic command or unrestricted path endpoint;
+- add a generic command, raw SSH-config editor or unrestricted path endpoint;
+- let an uploaded filename choose a device path;
 - bypass exact Origin checks for mutations;
+- expose private-key bytes, tokens or credential material through generic export;
 - package live config, logs, session state or private values;
 - make the WebUI start at boot;
 - fetch scripts, fonts, analytics or UI dependencies from the network;
