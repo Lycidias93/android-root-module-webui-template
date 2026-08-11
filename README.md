@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.2.1`
+`CORE_VERSION=0.2.2`
 
 | Capability | Included |
 |---|---|
