@@ -21,10 +21,10 @@ import (
 
 const (
 	v03CapabilitySchema = "root-module-webui.extensions.v1"
-	maxV03JSONBytes      = 256 << 10
-	maxV03UploadBytes    = 1 << 20
-	maxV03OutputBytes    = 1 << 20
-	v03PreviewTTL        = 10 * time.Minute
+	maxV03JSONBytes     = 256 << 10
+	maxV03UploadBytes   = 1 << 20
+	maxV03OutputBytes   = 1 << 20
+	v03PreviewTTL       = 10 * time.Minute
 )
 
 type v03FieldDefinition struct {
