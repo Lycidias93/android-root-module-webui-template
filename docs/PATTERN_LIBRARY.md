@@ -65,6 +65,19 @@ Adopted patterns:
 Direct shell construction in JavaScript and unrestricted path inputs are not
 adopted.
 
+RC5 additionally motivates reusable v0.3 primitives without moving SSH domain
+logic into the core:
+
+- typed repeated-record/profile editor;
+- preview-bound whole-collection apply;
+- bounded schema-declared import/export;
+- private upload staging with digest binding;
+- transaction/rollback result presentation;
+- secret/reference/credential export classification.
+
+Target aliases, SSH users/hosts/ports, remote drop rules, shell/SCP profiles,
+key-reference policy and Dispatcher verification semantics remain SDD-owned.
+
 ## Pixel Termux/MX500 Backup
 
 Source: `Lycidias93/heimnetz-geraete@8169f038b62a39caaca2626ce03f86d5246dcecc`
@@ -95,6 +108,59 @@ For a status/log module, declare only the features that exist:
 The shared frontend hides unsupported tabs. The adapter may provide a
 `status.summary` array for module-specific Overview cards, while all rendering,
 session handling and API transport remain in the common core.
+
+## Typed collection/profile administration
+
+For repeated records such as targets, schedules or rules, prefer the v0.3
+collection extension over a raw configuration textbox.
+
+Generic core responsibilities:
+
+- declared stable record identity;
+- typed and bounded fields;
+- maximum record count;
+- client and server validation;
+- preview token bound to the canonical record payload;
+- exact confirmation when declared;
+- one adapter call for whole-collection apply.
+
+Module responsibilities:
+
+- domain-specific validation and invariants;
+- effective-config generation;
+- backup before first productive write;
+- atomic commit;
+- health/lint/readiness verification;
+- rollback semantics.
+
+A collection is not a generic command or config-text channel.
+
+## Schema-bound import/export
+
+Use the v0.3 transfer extension for portable configuration or adapter-owned
+backup formats.
+
+Generic core responsibilities:
+
+- declared format/risk/byte limits;
+- exact Origin/session/request guards;
+- server-generated private upload path;
+- SHA-256 binding between preview and apply;
+- bounded output download;
+- secret-safe `redacted` or safe-reference export policy.
+
+Module responsibilities:
+
+- schema/module/version validation;
+- archive member allowlist;
+- traversal/symlink rejection;
+- redacted preview/diff;
+- pre-import backup and rollback;
+- effective-state verification;
+- explicit handling of any domain-specific sensitive backup mode.
+
+Private key bytes, tokens and credential material are deliberately not a generic
+core export feature.
 
 ## Template policy
 
