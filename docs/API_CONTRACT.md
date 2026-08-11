@@ -138,7 +138,8 @@ module-control action-file <declared-action> <private-request-file>
 ```
 
 The server enforces declaration, dry-run support and exact confirmation. The
-adapter repeats those checks.
+adapter repeats domain validation and may repeat the confirmation check when it
+is part of the module operation contract.
 
 ## Jobs
 
@@ -199,9 +200,161 @@ Recommended response:
 
 Inventories are read-only. Use jobs for expensive refreshes or mutations.
 
+## v0.3 typed administration extension
+
+The v0.3 core adds an optional extension capability document. Existing adapters
+that do not implement it continue to use the v1 endpoints above; `/v03.js`
+quietly disables the additional tabs when the extension is absent.
+
+### `GET /api/v1/v03/capabilities`
+
+Adapter source:
+
+```text
+module-control capabilities-v03
+```
+
+Extension schema:
+
+```text
+root-module-webui.extensions.v1
+```
+
+The module ID must exactly match the base capability document. The extension
+may declare:
+
+- `collections`: repeated typed records such as profiles, schedules or rules;
+- `imports`: bounded named import formats;
+- `exports`: bounded named export formats;
+- feature switches `collections` and `transfer`.
+
+Collection fields reuse `boolean`, `integer`, `string` and `enum` semantics and
+add `export_policy` metadata: `public`, `reference`, `secret`, or
+`credential_material`. Credential material is never eligible for generic
+export.
+
+### `GET /api/v1/v03/collection?name=<declared-collection>`
+
+Adapter invocation:
+
+```text
+module-control collection-get <declared-collection>
+```
+
+The adapter returns the current typed records. Stable identity, maximum record
+count and fields are declared in the extension capability document.
+
+### `POST /api/v1/v03/collection`
+
+Preview request:
+
+```json
+{
+  "name": "profiles",
+  "mode": "preview",
+  "records": []
+}
+```
+
+Apply request:
+
+```json
+{
+  "name": "profiles",
+  "mode": "apply",
+  "records": [],
+  "preview_token": "server-issued-token",
+  "confirmation": "optional exact text"
+}
+```
+
+The server validates every record and field. Preview invokes:
+
+```text
+module-control collection-preview <declared-collection> <private-request-file>
+```
+
+A successful preview creates a short-lived server-side token bound to the
+canonical collection payload. Apply is rejected unless that exact payload has a
+matching unexpired preview token and any declared exact confirmation succeeds.
+Apply invokes:
+
+```text
+module-control collection-apply <declared-collection> <private-request-file>
+```
+
+The adapter revalidates the typed payload, creates module-specific rollback
+state before the first productive write, commits the whole collection
+atomically, and reports verification/rollback state. Browser-driven partial
+shell/config writes are outside the contract.
+
+### `POST /api/v1/v03/import?name=<declared-import>`
+
+The request body is the import file itself. Supported generic media are bounded
+JSON or ZIP payloads. The server:
+
+- enforces the declaration-specific byte limit, capped by the core maximum;
+- creates the filename in the private WebUI runtime directory;
+- never derives a device path from the uploaded filename;
+- computes SHA-256;
+- invokes only the declared adapter import:
+
+```text
+module-control import-preview <declared-import> <private-upload-file>
+```
+
+The consuming adapter must reject malformed schema/module IDs, traversal,
+symlinks and undeclared archive members before preview succeeds. Preview is
+read-only.
+
+### `POST /api/v1/v03/import/apply`
+
+```json
+{
+  "name": "config",
+  "preview_token": "server-issued-token",
+  "confirmation": "optional exact text"
+}
+```
+
+The server rechecks the staged regular file, private-directory containment,
+size and SHA-256 before invoking:
+
+```text
+module-control import-apply <declared-import> <private-upload-file> <private-request-file>
+```
+
+A module adapter must create its rollback/pre-import backup before the first
+productive write, apply atomically, and verify the resulting effective state.
+Successful apply consumes the staged upload and preview token.
+
+### `POST /api/v1/v03/export`
+
+```json
+{
+  "name": "config",
+  "confirmation": "optional exact text"
+}
+```
+
+Adapter invocation:
+
+```text
+module-control export <declared-export>
+```
+
+The server accepts only declared `json` or `zip` exports with bounded output.
+Generic export policy is restricted to `redacted` or `reference`. The adapter
+must generate the export from typed/domain-owned data rather than expose an
+arbitrary file path. Private-key bytes, tokens and credential material are not
+a generic export mode.
+
+See [Import/export contract](IMPORT_EXPORT_CONTRACT_V1.md) for the design and
+adapter responsibilities.
+
 ## Mutation headers
 
-All POST requests require:
+All JSON POST requests require:
 
 ```text
 Origin: http://127.0.0.1:<active-port>
@@ -210,3 +363,6 @@ X-WebUI-Request: 1
 ```
 
 The browser sends the session cookie automatically with same-origin requests.
+The v0.3 import-preview upload endpoint uses the same exact Origin and
+`X-WebUI-Request` guard but accepts only declared bounded JSON/ZIP/octet-stream
+payload media instead of a JSON control request.
