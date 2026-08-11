@@ -6,6 +6,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 failures = []
 
+
 class Parser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -36,6 +37,7 @@ class Parser(HTMLParser):
         if tag == "link":
             self.links.append(attrs.get("href", ""))
 
+
 html = (ROOT / "module/webroot/index.html").read_text(encoding="utf-8")
 parser = Parser()
 parser.feed(html)
@@ -55,7 +57,7 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["app.js"]:
+if parser.scripts != ["app.js", "/v03.js"]:
     failures.append(f"scripts={parser.scripts}")
 if "app.css" not in parser.links:
     failures.append("app_css_missing")
@@ -80,9 +82,34 @@ for guard in (
 ):
     if guard not in javascript:
         failures.append(f"guard={guard}")
-for forbidden in ("ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec", "eval(", "new Function"):
-    if forbidden in javascript:
-        failures.append(f"forbidden={forbidden}")
+
+v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
+for endpoint in (
+    "/api/v1/v03/capabilities", "/api/v1/v03/collection",
+    "/api/v1/v03/import", "/api/v1/v03/import/apply", "/api/v1/v03/export",
+):
+    if endpoint not in v03:
+        failures.append(f"v03_endpoint={endpoint}")
+for guard in (
+    'headers.set("X-WebUI-Request", "1")',
+    'credentials: "same-origin"',
+    'cache: "no-store"',
+    'Preview changes',
+    'Apply reviewed changes',
+    'Validate & preview',
+    'Apply reviewed import',
+    'definition.max_bytes',
+):
+    if guard not in v03:
+        failures.append(f"v03_guard={guard}")
+
+for label, source in (("app", javascript), ("v03", v03)):
+    for forbidden in (
+        "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
+        "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",
+    ):
+        if forbidden in source:
+            failures.append(f"{label}_forbidden={forbidden}")
 
 action = (ROOT / "module/action.sh").read_text(encoding="utf-8")
 for required in ("-token-file", "/data/local/tmp/", "/bootstrap?token=", "-self-test"):
@@ -95,6 +122,19 @@ control = (ROOT / "module/bin/module-control").read_text(encoding="utf-8")
 for operation in ("capabilities)", "config-apply)", "action-file)", "job-run)", "inventory)"):
     if operation not in control:
         failures.append(f"control_operation={operation}")
+
+server_v03 = (ROOT / "server/cmd/webui-server/v03.go").read_text(encoding="utf-8")
+for required in (
+    'v03CapabilitySchema = "root-module-webui.extensions.v1"',
+    'maxV03UploadBytes',
+    'requireV03JSONMutation',
+    'requireV03UploadMutation',
+    'matching unexpired preview required',
+    'file outside private upload directory',
+    'credential_material',
+):
+    if required not in server_v03:
+        failures.append(f"v03_server_guard={required}")
 
 if failures:
     print("FAIL: webui_contract=" + ",".join(failures))
