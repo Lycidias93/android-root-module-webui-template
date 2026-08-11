@@ -398,6 +398,7 @@ func main() {
 	mux.HandleFunc("/api/v1/jobs", app.requireSession(app.jobsHandler))
 	mux.HandleFunc("/api/v1/jobs/", app.requireSession(app.jobHandler))
 	mux.HandleFunc("/api/v1/inventory", app.requireSession(app.inventory))
+	registerV03Handlers(mux, app)
 	mux.HandleFunc("/", app.pageOrAsset)
 
 	server := &http.Server{
