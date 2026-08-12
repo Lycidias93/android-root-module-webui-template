@@ -77,6 +77,14 @@ for file in module/action.sh module/customize.sh module/service.sh module/uninst
   sh -n "$file"
 done
 
+grep -Fq 'MODULE_NAME=$(sed -n '\''s/^name=//p'\'' "$MODPATH/module.prop" | head -n 1)' module/customize.sh
+grep -Fq 'MODULE_VERSION=$(sed -n '\''s/^version=//p'\'' "$MODPATH/module.prop" | head -n 1)' module/customize.sh
+grep -Fq 'ui_print "- Installing $MODULE_NAME $MODULE_VERSION"' module/customize.sh
+if grep -Fq 'Installing Standalone WebUI Foundation Example' module/customize.sh; then
+  echo "FAIL hardcoded_installer_metadata"
+  exit 1
+fi
+
 grep -Fq '/data/local/tmp/' module/action.sh
 grep -Fq -- '-token-file' module/action.sh
 [[ $(grep -Fc "sed 's/-//g' < /proc/sys/kernel/random/uuid" module/action.sh) -eq 2 ]] || {
