@@ -1,8 +1,5 @@
 #!/system/bin/sh
 
-ui_print "- Installing Standalone WebUI Foundation Example"
-ui_print "- No companion app, Termux, Python, or remote service is required"
-
 case "$(getprop ro.product.cpu.abi 2>/dev/null)" in
   arm64-v8a) ;;
   *)
@@ -15,6 +12,13 @@ MODULE_ID=$(sed -n 's/^id=//p' "$MODPATH/module.prop" | head -n 1)
 case "$MODULE_ID" in
   ""|*[!A-Za-z0-9._-]*) abort "Invalid module id" ;;
 esac
+MODULE_NAME=$(sed -n 's/^name=//p' "$MODPATH/module.prop" | head -n 1)
+MODULE_VERSION=$(sed -n 's/^version=//p' "$MODPATH/module.prop" | head -n 1)
+[ -n "$MODULE_NAME" ] || MODULE_NAME=$MODULE_ID
+[ -n "$MODULE_VERSION" ] || MODULE_VERSION=unknown
+
+ui_print "- Installing $MODULE_NAME $MODULE_VERSION"
+ui_print "- No companion app, Termux, Python, or remote service is required"
 
 STATE_DIR="/data/adb/$MODULE_ID"
 mkdir -p "$STATE_DIR/config" "$STATE_DIR/logs"
