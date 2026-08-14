@@ -79,6 +79,10 @@ for guard in (
     'cache: "no-store"',
     'function applyFeatureVisibility()',
     'Array.isArray(status.summary)',
+    'scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" })',
+    'function configuredState(definition)',
+    'Configured · leave blank to preserve.',
+    'function syncRunState()',
 ):
     if guard not in javascript:
         failures.append(f"guard={guard}")
@@ -99,6 +103,12 @@ for guard in (
     'Validate & preview',
     'Apply reviewed import',
     'definition.max_bytes',
+    'function resultSummary(value)',
+    'function syncApplyState()',
+    'function syncImportApply()',
+    'New record added.',
+    'recordCount',
+    'aria-live',
 ):
     if guard not in v03:
         failures.append(f"v03_guard={guard}")
