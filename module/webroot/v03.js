@@ -61,6 +61,7 @@
     document.querySelectorAll(".tab-panel").forEach(item => item.classList.remove("active"));
     button.classList.add("active");
     $(`#${button.dataset.panel}`)?.classList.add("active");
+    button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }
 
   function addTab(id, label, heading, description) {
@@ -133,8 +134,33 @@
     return record;
   }
 
+  function changeNames(value) {
+    return Array.isArray(value) ? value.map(item => typeof item === "string" ? item : item?.name || item?.id || "record") : [];
+  }
+
+  function resultSummary(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+    const preview = value.preview && typeof value.preview === "object" ? value.preview : value;
+    const changes = preview.changes && typeof preview.changes === "object" ? preview.changes : null;
+    const lines = [];
+    if (preview.ok === true || value.ok === true) lines.push("Result: PASS");
+    if (typeof preview.validation === "string") lines.push(`Validation: ${preview.validation.toUpperCase()}`);
+    if (changes) {
+      if (changes.current !== undefined || changes.proposed !== undefined) {
+        lines.push(`Records: ${changes.current ?? "?"} → ${changes.proposed ?? "?"}`);
+      }
+      for (const [key, label] of [["added", "Added"], ["changed", "Changed"], ["removed", "Removed"]]) {
+        const names = changeNames(changes[key]);
+        lines.push(`${label}: ${names.length ? names.join(", ") : "none"}`);
+      }
+    }
+    if (typeof value.bytes === "number") lines.push(`Bytes: ${value.bytes}`);
+    if (typeof value.sha256 === "string") lines.push(`SHA-256: ${value.sha256}`);
+    return lines.length ? `${lines.join("\n")}\n\nDetails:\n${JSON.stringify(value, null, 2)}` : "";
+  }
+
   function renderResult(target, value) {
-    target.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    target.textContent = typeof value === "string" ? value : resultSummary(value) || JSON.stringify(value, null, 2);
   }
 
   async function renderCollection(panel, definition) {
@@ -145,7 +171,8 @@
     );
     const toolbar = element("div", { className: "actions-row" });
     const recordsRoot = element("div", { className: "stack" });
-    const previewOutput = element("pre", { className: "job-output", text: "No preview yet." });
+    const recordCount = element("span", { className: "badge muted", text: `0 / ${definition.max_records} records` });
+    const previewOutput = element("pre", { className: "job-output", text: "No preview yet.", attributes: { "aria-live": "polite" } });
     const confirmation = element("input", {
       type: "text",
       placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "",
@@ -154,6 +181,28 @@
     const reloadButton = element("button", { type: "button", text: "Reload" });
     const previewButton = element("button", { type: "button", className: "caution", text: "Preview changes" });
     const applyButton = element("button", { type: "button", className: definition.risk === "danger" ? "danger" : "primary", text: "Apply reviewed changes", disabled: true });
+
+    function currentRecords() {
+      return [...recordsRoot.querySelectorAll(".action-card")].map(card => recordFromCard(card, definition));
+    }
+
+    function updateRecordCount() {
+      recordCount.textContent = `${recordsRoot.querySelectorAll(".action-card").length} / ${definition.max_records} records`;
+    }
+
+    function syncApplyState() {
+      const current = state.collection.get(definition.name) || {};
+      const confirmed = !definition.requires_confirmation || confirmation.value === definition.confirmation_text;
+      applyButton.disabled = !current.previewToken || !confirmed;
+    }
+
+    function markPreviewStale(message = "Changes edited. Preview again before apply.") {
+      const current = state.collection.get(definition.name) || {};
+      current.previewToken = "";
+      state.collection.set(definition.name, current);
+      syncApplyState();
+      renderResult(previewOutput, { ok: false, message });
+    }
 
     function renderRecords(records) {
       recordsRoot.replaceChildren(...records.map((record, index) => {
@@ -167,31 +216,22 @@
         ]);
         remove.addEventListener("click", () => {
           card.remove();
-          const current = state.collection.get(definition.name) || {};
-          current.previewToken = "";
-          state.collection.set(definition.name, current);
-          applyButton.disabled = true;
+          updateRecordCount();
+          markPreviewStale("Record removed locally. Preview changes before apply.");
         });
-        card.querySelectorAll("input,select").forEach(input => input.addEventListener("input", () => {
-          const current = state.collection.get(definition.name) || {};
-          current.previewToken = "";
-          state.collection.set(definition.name, current);
-          applyButton.disabled = true;
-        }));
+        card.querySelectorAll("input,select").forEach(input => input.addEventListener("input", () => markPreviewStale()));
         return card;
       }));
-    }
-
-    function currentRecords() {
-      return [...recordsRoot.querySelectorAll(".action-card")].map(card => recordFromCard(card, definition));
+      updateRecordCount();
     }
 
     async function reload() {
       const response = await apiJSON(`/api/v1/v03/collection?name=${encodeURIComponent(definition.name)}`);
       const records = Array.isArray(response.records) ? response.records : Array.isArray(response.items) ? response.items : [];
       state.collection.set(definition.name, { records, previewToken: "" });
+      confirmation.value = "";
       renderRecords(records);
-      applyButton.disabled = true;
+      syncApplyState();
       renderResult(previewOutput, { ok: true, message: "Loaded current collection.", records: records.length });
     }
 
@@ -203,21 +243,32 @@
       }
       records.push(defaultRecord(definition));
       renderRecords(records);
-      applyButton.disabled = true;
+      markPreviewStale("New record added. Fill the required fields, then preview changes.");
+      const lastCard = recordsRoot.lastElementChild;
+      const identity = lastCard?.querySelector(`[data-field-key="${CSS.escape(definition.identity_key)}"]`);
+      window.requestAnimationFrame(() => {
+        lastCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+        identity?.focus({ preventScroll: true });
+      });
     });
     reloadButton.addEventListener("click", () => reload().catch(error => renderResult(previewOutput, { ok: false, error: error.message })));
+    confirmation.addEventListener("input", syncApplyState);
     previewButton.addEventListener("click", async () => {
       previewButton.disabled = true;
       try {
+        const records = currentRecords();
         const response = await apiJSON("/api/v1/v03/collection", {
           method: "POST",
-          body: JSON.stringify({ name: definition.name, mode: "preview", records: currentRecords() }),
+          body: JSON.stringify({ name: definition.name, mode: "preview", records }),
         });
-        state.collection.set(definition.name, { records: currentRecords(), previewToken: response.preview_token });
-        applyButton.disabled = false;
+        state.collection.set(definition.name, { records, previewToken: response.preview_token });
+        syncApplyState();
         renderResult(previewOutput, response.result || response);
       } catch (error) {
-        applyButton.disabled = true;
+        const current = state.collection.get(definition.name) || {};
+        current.previewToken = "";
+        state.collection.set(definition.name, current);
+        syncApplyState();
         renderResult(previewOutput, { ok: false, error: error.message });
       } finally {
         previewButton.disabled = false;
@@ -238,14 +289,15 @@
             confirmation: definition.requires_confirmation ? confirmation.value : "",
           }),
         });
-        renderResult(previewOutput, response);
         await reload();
+        renderResult(previewOutput, response);
       } catch (error) {
         renderResult(previewOutput, { ok: false, error: error.message });
+        syncApplyState();
       }
     });
 
-    toolbar.append(reloadButton, addButton, previewButton);
+    toolbar.append(reloadButton, addButton, previewButton, recordCount);
     panel.append(toolbar, recordsRoot);
     if (definition.requires_confirmation) panel.append(element("label", { className: "field" }, [
       element("span", { text: "Apply confirmation" }), confirmation,
@@ -292,8 +344,13 @@
       const exportRoot = element("div", { className: "cards" });
       exports.forEach(definition => {
         const confirmation = element("input", { type: "text", placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "" });
-        const output = element("pre", { className: "job-output", text: `Policy: ${definition.secret_policy}` });
+        const output = element("pre", { className: "job-output", text: `Policy: ${definition.secret_policy}`, attributes: { "aria-live": "polite" } });
         const button = element("button", { type: "button", className: definition.risk === "danger" ? "danger" : "primary", text: definition.label });
+        function syncExportState() {
+          if (definition.requires_confirmation) button.disabled = confirmation.value !== definition.confirmation_text;
+        }
+        confirmation.addEventListener("input", syncExportState);
+        syncExportState();
         button.addEventListener("click", async () => {
           button.disabled = true;
           try {
@@ -320,7 +377,7 @@
           } catch (error) {
             renderResult(output, { ok: false, error: error.message });
           } finally {
-            button.disabled = false;
+            syncExportState();
           }
         });
         const card = element("article", { className: "card" }, [
@@ -342,7 +399,19 @@
         const confirmation = element("input", { type: "text", placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "" });
         const preview = element("button", { type: "button", className: "caution", text: "Validate & preview" });
         const apply = element("button", { type: "button", className: definition.risk === "danger" ? "danger" : "primary", text: "Apply reviewed import", disabled: true });
-        const output = element("pre", { className: "job-output", text: "No import preview yet." });
+        const output = element("pre", { className: "job-output", text: "No import preview yet.", attributes: { "aria-live": "polite" } });
+
+        function syncImportApply() {
+          const current = state.imports.get(definition.name);
+          const confirmed = !definition.requires_confirmation || confirmation.value === definition.confirmation_text;
+          apply.disabled = !current?.previewToken || !confirmed;
+        }
+
+        confirmation.addEventListener("input", syncImportApply);
+        file.addEventListener("change", () => {
+          state.imports.delete(definition.name);
+          syncImportApply();
+        });
 
         preview.addEventListener("click", async () => {
           const selected = file.files?.[0];
@@ -355,14 +424,16 @@
             return;
           }
           preview.disabled = true;
-          apply.disabled = true;
+          state.imports.delete(definition.name);
+          syncImportApply();
           try {
             const response = await apiUpload(`/api/v1/v03/import?name=${encodeURIComponent(definition.name)}`, selected);
             state.imports.set(definition.name, { previewToken: response.preview_token });
-            apply.disabled = false;
+            syncImportApply();
             renderResult(output, { sha256: response.sha256, bytes: response.bytes, preview: response.result });
           } catch (error) {
             state.imports.delete(definition.name);
+            syncImportApply();
             renderResult(output, { ok: false, error: error.message });
           } finally {
             preview.disabled = false;
@@ -383,10 +454,12 @@
               }),
             });
             state.imports.delete(definition.name);
+            confirmation.value = "";
+            syncImportApply();
             renderResult(output, response);
           } catch (error) {
             renderResult(output, { ok: false, error: error.message });
-            apply.disabled = false;
+            syncImportApply();
           }
         });
 

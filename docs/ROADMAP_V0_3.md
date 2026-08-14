@@ -1,93 +1,85 @@
 # WebUI core v0.3 roadmap
 
-Status: design / not yet released
+Status: implemented / maintained
 
 ## Goal
 
-Extend the standalone WebUI foundation from single-object configuration plus read-only inventories into safe editing of repeated typed records and schema-versioned import/export workflows without introducing arbitrary shell, arbitrary path or raw-config editing.
+The v0.3 standalone WebUI extends the foundation from single-object configuration plus read-only inventories into safe editing of repeated typed records and schema-versioned import/export workflows without introducing arbitrary shell, arbitrary path or raw-config editing.
 
-The first consumer is expected to be SSH Drop Dispatcher RC5, but the primitives must remain domain-neutral and reusable by other Magisk/root modules.
+SSH Drop Dispatcher RC5 is the first runtime-proven consumer, while the primitives remain domain-neutral and reusable by other Magisk/root modules.
 
-## Candidate core capabilities
+## Implemented core capabilities
 
 ### Typed collection editor
 
-Add a capability-declared collection form for repeated records such as profiles, targets, schedules or rules.
+The capability-declared collection form supports repeated records such as profiles, targets, schedules or rules.
 
-Required properties:
+Properties:
 
 - stable record identity;
-- declared fields using the existing typed field model where possible;
-- add/edit/disable/delete operations declared separately;
-- server-side and adapter-side validation;
+- declared typed fields using the shared field model;
 - bounded record counts and field lengths;
-- deterministic ordering where the module requires it;
+- server-side and adapter-side validation;
+- deterministic whole-collection payloads;
 - preview/diff before apply;
-- one atomic whole-collection commit rather than partial browser-driven shell commands;
+- short-lived preview token bound to the canonical record payload;
+- one atomic whole-collection adapter call rather than partial browser-driven shell commands;
 - exact confirmation for destructive operations when declared.
 
-The shared core must not define SSH semantics. A consuming module may use the collection editor for SSH host profiles, but host aliases, usernames, ports, shell profiles and other domain rules remain adapter-owned.
+The shared core does not define SSH semantics. A consuming module may use the collection editor for SSH host profiles, but host aliases, usernames, ports, shell profiles and other domain rules remain adapter-owned.
 
 ### Import and export
 
-Add a generic, bounded file-exchange contract for structured module configuration.
+The generic file-exchange contract is bounded and schema-declared.
 
 Design constraints:
 
-- JSON first; schema identifier and schema version mandatory;
-- explicit module id and export format version;
+- JSON-first structured exchange with module-owned schema/version validation;
 - maximum upload/download sizes enforced by the server;
 - uploads land only in the private WebUI runtime directory;
-- adapter receives a server-created private request/import file;
+- adapter receives server-created private paths;
 - import is validate/preview first, apply second;
-- apply is atomic and rollback-capable in the adapter;
+- preview token is bound to staged file SHA-256;
+- apply remains adapter-owned, atomic and rollback-capable;
 - export is generated from typed adapter data, never by exposing arbitrary files;
-- default export mode is secret-safe/redacted;
-- secret/full export, when a module supports it, requires an explicit declared capability and stronger confirmation;
-- generic core never exports private-key bytes, tokens or credential contents by default;
+- default export remains secret-safe/redacted or safe-reference only;
+- private-key bytes, tokens and credential contents are excluded from generic export;
 - imported documents cannot choose arbitrary filesystem paths or commands;
-- checksum/metadata can be displayed to the user without separate sidecar files.
+- checksum/metadata can be displayed without sidecar files.
 
-Potential adapter operations:
+### Transaction and mobile UX
 
-```text
-module-control export <declared-export> <private-request-file>
-module-control import-preview <declared-import> <private-upload-file>
-module-control import-apply <declared-import> <private-request-file>
-```
+The maintained v0.3 UI provides reusable frontend behavior for:
 
-Exact operation names and server endpoints remain subject to implementation review.
+- validation and preview result summaries;
+- planned add/change/remove counts;
+- exact-confirmation gating before apply;
+- stale-preview invalidation after edits;
+- visible record counts;
+- Add record scroll/focus feedback on long mobile forms;
+- import preview/apply gating;
+- accessible live result output;
+- horizontally scrollable tabs that keep the active tab in view.
 
-### Transaction and rollback UX
-
-Provide reusable frontend language for:
-
-- validation result;
-- planned changes;
-- backup created;
-- apply success/failure;
-- rollback available/completed;
-- restart/reboot required.
-
-The core renders state; module adapters own actual backup and rollback semantics.
+The core renders state; module adapters own actual backup, rollback, restart and reboot semantics.
 
 ### Secret-aware fields and exports
 
-Keep the existing write-only secret-field model and extend it with explicit export policy metadata:
+The write-only secret-field model remains intact. Export policy metadata distinguishes:
 
 - `public`: safe to export;
 - `reference`: path/name reference may be exportable when module policy permits;
 - `secret`: value never returned through normal status/config/export;
 - `credential_material`: excluded from generic export entirely.
 
-Final names may change during schema design, but the distinction between references and credential contents is mandatory.
+A module may expose only a boolean/non-secret configured indicator through `status.runtime.<field_key>_configured`. The generic UI can render `Configured · leave blank to preserve` without receiving the underlying secret value.
 
-## SSH Drop Dispatcher RC5 mapping
+## SSH Drop Dispatcher mapping
 
-The shared core should provide only the generic primitives above. SDD RC5 owns:
+The shared core provides only the generic primitives above. SSH Drop Dispatcher owns:
 
 - target/host record schema;
-- alias/name validation;
+- alias/name validation and stored-profile compatibility;
 - host/address field policy;
 - username and port constraints;
 - remote drop path validation;
@@ -95,28 +87,31 @@ The shared core should provide only the generic primitives above. SDD RC5 owns:
 - SCP profile including BerylAX `-O`;
 - SSH key-reference selection policy;
 - dispatcher verification-owner and remote-SHA invariants;
-- per-target readiness/test jobs;
-- migration from the current registry/config files;
-- atomic regeneration of the Dispatcher SSH/target configuration;
-- rollback snapshots.
+- per-target and aggregate readiness/test jobs;
+- migration from the registry/config files;
+- atomic regeneration of Dispatcher SSH/target configuration;
+- rollback snapshots;
+- companion integration status such as Sortify read-only state.
 
-Private SSH key bytes are out of scope for browser import/export. RC5 may expose references to already-installed keys only through an allowlisted adapter contract.
+Private SSH key bytes remain out of scope for browser import/export.
 
 ## Security gates
 
-A v0.3 implementation must keep all current invariants and additionally prove:
+The v0.3 implementation keeps the original invariants and additionally proves:
 
 - no raw SSH-config editor in generic core;
 - no arbitrary path picker capable of reading/writing device files;
 - no browser-supplied shell command construction;
 - imports are schema-bound and size-bound;
 - preview has no productive mutation;
-- apply creates adapter-owned rollback state before first productive write;
+- apply is bound to a matching unexpired preview token;
+- module adapters create rollback state before productive writes when their domain requires it;
 - exports do not expose undeclared fields;
 - default exports contain no secret/credential contents;
+- configured-state indicators reveal only boolean/non-secret state;
 - loopback/session/origin protections remain unchanged;
 - malformed or cross-module imports fail closed.
 
 ## Versioning
 
-This roadmap does not change `CORE_VERSION` by itself. Increase the core version only when the new API/frontend/server contract is implemented, tested and documented consistently across README, API contract, security model, migration/core-sync docs, manifest and verification tests.
+`CORE_VERSION` remains the authoritative core version. Consumer candidates must pin a concrete template commit as well as the core version. Any future core-version change must keep README, API contract, security model, migration/core-sync docs, pattern library, manifest and tests consistent.

@@ -82,6 +82,7 @@
     $$(".tab-panel").forEach(item => item.classList.remove("active"));
     button.classList.add("active");
     $(`#${button.dataset.panel}`)?.classList.add("active");
+    button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }
 
   function wireTabs() {
@@ -158,12 +159,27 @@
     ));
   }
 
+  function configuredState(definition) {
+    if (!definition.secret) return "";
+    const runtime = state.status?.runtime;
+    const key = `${definition.key}_configured`;
+    if (!runtime || !Object.prototype.hasOwnProperty.call(runtime, key)) return "";
+    const raw = runtime[key];
+    const normalized = typeof raw === "string" ? raw.toLowerCase() : raw;
+    const configured = normalized === true || normalized === 1 || normalized === "1" || normalized === "yes" || normalized === "true" || normalized === "configured";
+    return configured ? "Configured · leave blank to preserve." : "Not configured.";
+  }
+
+  function fieldDescription(definition) {
+    return [configuredState(definition), definition.description || ""].filter(Boolean).join(" ");
+  }
+
   function field(definition, value) {
     if (definition.type === "boolean") {
       const input = element("input", { type: "checkbox", checked: Boolean(value), name: definition.key });
       return element("label", { className: "field" }, [
         element("span", { text: definition.label }),
-        element("span", { className: "toggle" }, [input, element("small", { text: definition.description || "" })]),
+        element("span", { className: "toggle" }, [input, element("small", { text: fieldDescription(definition) })]),
       ]);
     }
     let input;
@@ -186,7 +202,7 @@
     return element("label", { className: "field" }, [
       element("span", { text: definition.label }),
       input,
-      element("small", { text: definition.description || "" }),
+      element("small", { text: fieldDescription(definition) }),
     ]);
   }
 
@@ -217,8 +233,8 @@
     const response = await api("/api/v1/config", { method: "POST", body: JSON.stringify(readConfig()) });
     state.config = response.config || await api("/api/v1/config");
     ui.dirtyBadge.classList.add("hidden");
-    renderConfig();
     await refreshStatus();
+    renderConfig();
     showNotice("Settings saved.");
   }
 
@@ -231,6 +247,11 @@
         placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "",
       });
       const run = element("button", { type: "button", className: risk(definition.risk), text: definition.label });
+      function syncRunState() {
+        run.disabled = definition.requires_confirmation && confirmation.value !== definition.confirmation_text;
+      }
+      confirmation.addEventListener("input", syncRunState);
+      syncRunState();
       run.addEventListener("click", async () => {
         run.disabled = true;
         try {
@@ -247,7 +268,7 @@
         } catch (error) {
           showFatal(error);
         } finally {
-          run.disabled = false;
+          syncRunState();
         }
       });
       const controls = element("div", { className: "action-controls" });

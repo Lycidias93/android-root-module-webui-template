@@ -85,13 +85,30 @@ Supported `level` values are `good`, `caution`, `danger`, and `muted`.
 Adapters should report safety facts as positive assertions whose healthy value
 is `true`, for example `arbitrary_shell_blocked=true`.
 
+### Secret configured-state convention
+
+A config field declared with `secret:true` remains write-only: its value must not
+be returned by `config-get`, status, logs or exports. When useful, an adapter may
+expose only a non-secret configured indicator under:
+
+```text
+status.runtime.<field_key>_configured
+```
+
+Accepted truthy representations in the shared UI are boolean/numeric truth or
+`yes`, `true`, `1`, or `configured`. The UI renders only configured/not-configured
+state and never reconstructs, masks, fingerprints or displays the secret value.
+This convention is optional and does not change the configuration request schema.
+
 ## Configuration
 
 ### `GET /api/v1/config`
 
 Adapter source: `module-control config-get`
 
-Returns one object containing exactly the declared fields.
+Returns one object containing exactly the declared fields. Secret/write-only
+fields may therefore be returned as empty placeholders while their configured
+state is separately reported through the optional status convention above.
 
 ### `POST /api/v1/config`
 
@@ -102,7 +119,9 @@ module-control config-apply <private-request-file>
 ```
 
 Adapters must perform one atomic whole-config update. Partial multi-command
-writes are not the contract.
+writes are not the contract. If an adapter defines empty secret input as
+`preserve existing`, that behavior is module-owned and must be documented by the
+field description; the shared core does not infer or read the secret.
 
 ## Logs
 
@@ -138,6 +157,8 @@ module-control action-file <declared-action> <private-request-file>
 ```
 
 The server enforces declaration, dry-run support and exact confirmation. The
+shared UI may additionally keep the action button disabled until the declared
+confirmation text matches, but server enforcement remains authoritative. The
 adapter repeats domain validation and may repeat the confirmation check when it
 is part of the module operation contract.
 
@@ -277,7 +298,9 @@ module-control collection-preview <declared-collection> <private-request-file>
 A successful preview creates a short-lived server-side token bound to the
 canonical collection payload. Apply is rejected unless that exact payload has a
 matching unexpired preview token and any declared exact confirmation succeeds.
-Apply invokes:
+The shared UI also invalidates its local preview state after edits and keeps
+Apply disabled until the current preview token and exact confirmation are both
+present. Server validation remains authoritative. Apply invokes:
 
 ```text
 module-control collection-apply <declared-collection> <private-request-file>
@@ -326,7 +349,9 @@ module-control import-apply <declared-import> <private-upload-file> <private-req
 
 A module adapter must create its rollback/pre-import backup before the first
 productive write, apply atomically, and verify the resulting effective state.
-Successful apply consumes the staged upload and preview token.
+Successful apply consumes the staged upload and preview token. The shared UI
+keeps Apply disabled until a fresh preview and any declared exact confirmation
+are both present.
 
 ### `POST /api/v1/v03/export`
 
