@@ -57,10 +57,11 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["app.js", "/v03.js"]:
+if parser.scripts != ["race-guard.js", "app.js", "/v03.js"]:
     failures.append(f"scripts={parser.scripts}")
-if "app.css" not in parser.links:
-    failures.append("app_css_missing")
+for stylesheet in ("app.css", "race-guard.css"):
+    if stylesheet not in parser.links:
+        failures.append(f"stylesheet_missing={stylesheet}")
 if 'aria-live="polite"' not in html:
     failures.append("aria_live_missing")
 if parser.features != {"config", "actions", "jobs", "inventory", "logs"}:
@@ -86,6 +87,20 @@ for guard in (
 ):
     if guard not in javascript:
         failures.append(f"guard={guard}")
+
+race_guard = (ROOT / "module/webroot/race-guard.js").read_text(encoding="utf-8")
+for guard in (
+    'webuiStatusReady',
+    'webuiMutationBusy',
+    'another operation is still completing',
+    'sequence !== logSequence',
+    'sequence !== statusSequence',
+    'path === "/api/v1/action"',
+    'path === "/api/v1/config"',
+    'path === "/api/v1/jobs"',
+):
+    if guard not in race_guard:
+        failures.append(f"race_guard={guard}")
 
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -113,7 +128,7 @@ for guard in (
     if guard not in v03:
         failures.append(f"v03_guard={guard}")
 
-for label, source in (("app", javascript), ("v03", v03)):
+for label, source in (("app", javascript), ("race_guard", race_guard), ("v03", v03)):
     for forbidden in (
         "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
         "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",
