@@ -95,6 +95,24 @@ Adopted patterns:
 
 Termux Python dependency and fixed-port server are not adopted.
 
+## Supercharger Pixel 9 Series interaction reliability
+
+Source: `Drizzy07x/Supercharger_Pixel_9_Series@be76cbe57d01fa475196b7afb3729b9ad19f0a26`
+
+Adopted generic patterns:
+
+- state-dependent mutations stay unavailable until the first valid status is
+  available;
+- a second mutation is rejected while the first mutation is still completing;
+- stale, out-of-order log or status responses must not replace newer UI state;
+- task launch state is released only after the matching completion refresh;
+- regression tests exercise the race windows rather than only static rendering.
+
+The shared implementation keeps the template's loopback HTTP API and does not
+adopt Supercharger's root-manager JavaScript exec bridge, Pixel 9 device policy,
+static thermal profiles, VM/network tuning, IRQ masks, GPU floors, app optimizer
+or maintenance domain logic.
+
 ## Capability-driven read-only dashboard
 
 For a status/log module, declare only the features that exist:

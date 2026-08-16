@@ -38,6 +38,14 @@ and first-party module projects into one standalone browser WebUI foundation.
   concepts.
 - License: MIT
 
+### Drizzy07x / Drizzy11 — Supercharger Pixel 9 Series
+
+- Project: `Drizzy07x/Supercharger_Pixel_9_Series`
+- Pinned source: `be76cbe57d01fa475196b7afb3729b9ad19f0a26`
+- Contribution: WebUI interaction-race regression scenarios, status-readiness
+  gating, duplicate-action prevention and stale-response handling concepts.
+- License: MIT
+
 ## First-party pattern sources
 
 The v0.2 foundation also consolidates patterns developed in these Lycidias93

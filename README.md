@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.3.0`
+`CORE_VERSION=0.3.1`
 
 | Capability | Included |
 |---|---|
@@ -28,6 +28,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 | Preview-bound whole-collection apply | Yes, optional v0.3 extension |
 | Bounded schema-declared import/export | Yes, optional v0.3 extension |
 | Secret/reference/credential export policy metadata | Yes |
+| Startup mutation lock and stale-response guard | Yes |
 | Bounded logs | Yes |
 | ARM64 Android build | Yes |
 | 32-bit/x86 builds | No; intentionally not advertised |
@@ -48,6 +49,9 @@ additional Profiles/Backup tabs.
 - Generic export is secret-safe and cannot expose arbitrary device files.
 - Module-specific shell or native logic remains authoritative.
 - JavaScript never constructs or executes arbitrary shell commands.
+- State-dependent base mutations remain locked until status is ready and while
+  a previous mutation is still completing.
+- Stale overlapping status/log responses are prevented from replacing newer UI state.
 - Every mutable value is validated in the server and again at the module/domain boundary.
 - Runtime session/upload/preview files remain outside the replaceable module directory.
 - Persistent configuration survives module updates under `/data/adb/<module-id>`.
@@ -106,7 +110,6 @@ module/webroot/                  Generic capability-driven UI + optional v0.3 la
 server/cmd/webui-server/         Native loopback server and tests
 scripts/sync-core.sh             Plan/apply core updates to another repo
 scripts/verify.sh                Policy, syntax, unit and integration checks
-scripts/build.sh                 ARM64 module ZIP + build manifest
 docs/                            API, architecture, migration and security
 third_party/licenses/            Retained upstream MIT licenses
 ```

@@ -8,6 +8,7 @@
 | `KOWX712/ksu-webui-demo` | `5ff958423202e9af7675e83e8ce57a34d80ddcd9` | Vanilla JavaScript layout and compatibility concepts | Clean reimplementation informed by upstream |
 | `barsikus007/ksu-webui-module-template` | `4ec624e2514043064d3b50ff5ec585acff4ffc97` | Packaging, multi-manager structure and CI concepts | Clean reimplementation informed by upstream |
 | `Aurora-Nasa-1/AMMF2` | `98d2ef7d0491f6524cee09c958ef239338b49d3c` | Logging, theme, localization and component concepts | Reference only |
+| `Drizzy07x/Supercharger_Pixel_9_Series` | `be76cbe57d01fa475196b7afb3729b9ad19f0a26` | WebUI readiness/busy-state, duplicate-action and stale-response regression patterns | Clean generic adaptation; no Supercharger tuning or device logic imported |
 
 Matching license texts are retained in `third_party/licenses/`.
 
