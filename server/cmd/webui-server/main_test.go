@@ -85,6 +85,67 @@ func TestBootstrapOneTimeCookie(t *testing.T) {
 	}
 }
 
+func TestCoreHTMLAssetsAreServed(t *testing.T) {
+	dir := t.TempDir()
+	assets := []string{
+		"index.html",
+		"app.js",
+		"app.css",
+		"race-guard.js",
+		"race-guard.css",
+		"observability.js",
+		"observability.css",
+		"v03.js",
+		"v04.js",
+	}
+	for _, name := range assets {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("asset:"+name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	app := &application{
+		webroot:        dir,
+		session:        "0123456789abcdef",
+		sessionExpires: time.Now().Add(time.Minute),
+	}
+	mux := http.NewServeMux()
+	registerV03Handlers(mux, app)
+	registerV04Handlers(mux, app)
+	mux.HandleFunc("/", app.pageOrAsset)
+
+	for _, path := range []string{
+		"/",
+		"/app.js",
+		"/app.css",
+		"/race-guard.js",
+		"/race-guard.css",
+		"/observability.js",
+		"/observability.css",
+		"/v03.js",
+		"/v04.js",
+	} {
+		request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1"+path, nil)
+		request.AddCookie(&http.Cookie{Name: sessionCookieName, Value: app.session})
+		recorder := httptest.NewRecorder()
+		mux.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("asset %s code=%d body=%s", path, recorder.Code, recorder.Body.String())
+		}
+		if recorder.Body.Len() == 0 {
+			t.Fatalf("asset %s returned empty body", path)
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/not-allowlisted.js", nil)
+	request.AddCookie(&http.Cookie{Name: sessionCookieName, Value: app.session})
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("unexpected arbitrary asset status=%d", recorder.Code)
+	}
+}
+
 func TestValidateConfig(t *testing.T) {
 	app := &application{configIndex: map[string]configField{
 		"enabled": {Key: "enabled", Type: "boolean"},
