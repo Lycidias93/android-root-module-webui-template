@@ -12,9 +12,9 @@ import (
 func TestV04CapabilityValidation(t *testing.T) {
 	app := &application{inventoryIndex: map[string]inventoryDefinition{"returns": {Name: "returns"}}}
 	doc := v04CapabilityDocument{
-		Schema: v04CapabilitySchema,
-		Module: moduleDefinition{ID: "example"},
-		Features: map[string]bool{"typed_jobs": true, "inventory_operations": true, "references": true},
+		Schema:     v04CapabilitySchema,
+		Module:     moduleDefinition{ID: "example"},
+		Features:   map[string]bool{"typed_jobs": true, "inventory_operations": true, "references": true},
 		References: []v04ReferenceDefinition{{Name: "target", SourceCollection: "targets", SourceIdentityKey: "name"}},
 		Jobs: []v04JobDefinition{{
 			Name: "collect", Risk: "caution", DedupeKeys: []string{"return_id"},

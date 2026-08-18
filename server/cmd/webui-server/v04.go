@@ -49,10 +49,10 @@ type v04JobDefinition struct {
 }
 
 type v04ReferenceDefinition struct {
-	Name               string `json:"name"`
-	Label              string `json:"label"`
-	SourceCollection   string `json:"source_collection"`
-	SourceIdentityKey  string `json:"source_identity_key"`
+	Name              string `json:"name"`
+	Label             string `json:"label"`
+	SourceCollection  string `json:"source_collection"`
+	SourceIdentityKey string `json:"source_identity_key"`
 }
 
 type v04InventoryOperationDefinition struct {
@@ -66,12 +66,12 @@ type v04InventoryOperationDefinition struct {
 }
 
 type v04CapabilityDocument struct {
-	Schema              string                              `json:"schema"`
-	Module              moduleDefinition                    `json:"module"`
-	Features            map[string]bool                     `json:"features"`
-	References          []v04ReferenceDefinition            `json:"references,omitempty"`
-	Jobs                []v04JobDefinition                  `json:"jobs,omitempty"`
-	InventoryOperations []v04InventoryOperationDefinition   `json:"inventory_operations,omitempty"`
+	Schema              string                            `json:"schema"`
+	Module              moduleDefinition                  `json:"module"`
+	Features            map[string]bool                   `json:"features"`
+	References          []v04ReferenceDefinition          `json:"references,omitempty"`
+	Jobs                []v04JobDefinition                `json:"jobs,omitempty"`
+	InventoryOperations []v04InventoryOperationDefinition `json:"inventory_operations,omitempty"`
 }
 
 type v04JobRequest struct {

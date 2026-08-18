@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.3.1`
+`CORE_VERSION=0.4.0`
 
 | Capability | Included |
 |---|---|
@@ -251,3 +251,18 @@ No upstream project is represented as endorsing this template.
 
 Original project code is MIT-licensed. Third-party notices remain under their
 respective retained license files.
+
+## Core v0.4 typed async extension
+
+Core v0.4 keeps the base v1 and v0.3 contracts backward compatible and adds an opt-in `capabilities-v04` extension for workflows that need typed parameters without exposing an arbitrary command or path channel.
+
+Reusable primitives:
+
+- typed parameterized background jobs staged through private request files;
+- active-job dedupe on declared identity fields;
+- collection-backed reference parameters;
+- inventory-bound operations that re-resolve a selected identity before launch;
+- visibility-aware bounded polling without fake percentage progress;
+- one shared status timeout for HTTP status and server self-test.
+
+Modules that do not implement `capabilities-v04` continue to use the existing UI/API unchanged. See [Core v0.4 contract](docs/ROADMAP_V0_4.md).

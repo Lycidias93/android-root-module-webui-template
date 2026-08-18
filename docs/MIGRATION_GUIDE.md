@@ -174,3 +174,7 @@ Verify:
 6. **Pixel Readable Fonts** — converge its already strong browser security model back onto the shared core without weakening its trial state machine.
 
 Each migration is a separate PR with its own device verification and rollback.
+
+## Opting into v0.4 typed async
+
+No migration is required for modules that remain on base-v1 or v0.3. To opt in, implement `capabilities-v04` plus only the declared `job-run-file` operations. Keep parameters typed and bounded and prefer collection-backed references or inventory-bound operations over free-form identifiers, paths or commands.

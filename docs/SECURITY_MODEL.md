@@ -136,3 +136,7 @@ Do not merge a change that:
 - uses remote scripts, fonts, analytics or CDN assets;
 - silently adds unbuilt ABI branches;
 - turns WebUI success into a boot requirement.
+
+## v0.4 typed asynchronous boundary
+
+Typed job parameters are validated and serialized into a server-created private request file. The adapter receives a declared job name plus that private path. Inventory-bound operations re-read the declared inventory and collection-backed references accept only current declared identities. These primitives do not provide an arbitrary executable, shell command, SSH command, raw configuration or device-path input.

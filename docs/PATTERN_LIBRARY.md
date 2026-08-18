@@ -191,3 +191,7 @@ A pattern enters the shared core only when it is:
 - represented by a stable adapter/API contract.
 
 Domain logic stays in the originating module.
+
+## Typed asynchronous workflow primitives
+
+Core v0.4 generalizes a safe pattern needed by return collection, backup/restore and diagnostics: browser inputs remain typed, references come from stable collection identities, inventory operations re-resolve the selected row, the server writes a private request file, and only one declared adapter job is invoked. Active duplicate work may be coalesced by declared keys. Domain phases and verification semantics remain module-owned.
