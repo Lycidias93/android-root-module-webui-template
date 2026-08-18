@@ -141,7 +141,7 @@ for guard in (
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
     "/api/v1/v03/capabilities", "/api/v1/v03/collection",
-    "/api/v1/v03/import", "/api/v1/v03/import/apply", "/api/v1/export",
+    "/api/v1/v03/import", "/api/v1/v03/import/apply", "/api/v1/v03/export",
 ):
     if endpoint not in v03:
         failures.append(f"v03_endpoint={endpoint}")
