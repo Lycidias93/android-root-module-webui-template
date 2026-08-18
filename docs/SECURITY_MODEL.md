@@ -140,3 +140,30 @@ Do not merge a change that:
 ## v0.4 typed asynchronous boundary
 
 Typed job parameters are validated and serialized into a server-created private request file. The adapter receives a declared job name plus that private path. Inventory-bound operations re-read the declared inventory and collection-backed references accept only current declared identities. These primitives do not provide an arbitrary executable, shell command, SSH command, raw configuration or device-path input.
+
+## v0.5 browser observability boundary
+
+The observability layer is browser-session-only and adds no HTTP endpoint or
+adapter operation. It wraps the existing same-origin fetch path so the server's
+authentication, Origin checks, request guard and typed adapter allowlists remain
+authoritative.
+
+- Operation history is bounded to 200 in-memory entries.
+- Entries contain only timestamp, typed operation class, HTTP method, endpoint
+  path without query parameters, result, duration and bounded transport error.
+- Request payloads, response bodies, shell commands, job output, query strings,
+  cookies and bootstrap/session tokens are never retained by the timeline.
+- Safe raw state is limited to allowlisted capabilities/status/job-summary JSON.
+- Config responses, logs, job output, collection contents, imports, exports and
+  arbitrary inventory rows are excluded from snapshots.
+- Snapshot depth, item count, key count and string length are bounded; sensitive
+  key names are replaced with `[redacted]`.
+- Diagnostics are not persisted to localStorage, sessionStorage or disk and are
+  never transmitted off-device by the core.
+- Global dirty state represents browser-local drafts only. It never creates a
+  cross-transaction `Save all` operation; `Discard local` reloads the page and
+  performs no module mutation.
+
+Adapter authors remain responsible for never returning secrets under misleading
+non-sensitive field names. See `docs/ROADMAP_V0_5.md` for the exact allowlist and
+draft-clearing contract.

@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.4.0`
+`CORE_VERSION=0.5.0`
 
 | Capability | Included |
 |---|---|
@@ -29,6 +29,8 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 | Bounded schema-declared import/export | Yes, optional v0.3 extension |
 | Secret/reference/credential export policy metadata | Yes |
 | Startup mutation lock and stale-response guard | Yes |
+| Global unsaved-area coordinator | Yes |
+| Typed operation timeline + safe diagnostics | Yes |
 | Bounded logs | Yes |
 | ARM64 Android build | Yes |
 | 32-bit/x86 builds | No; intentionally not advertised |
@@ -37,6 +39,10 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 The v0.3 administration extension is opt-in. Modules that do not implement
 `capabilities-v03` continue to use the same base v1 UI/API and do not show the
 additional Profiles/Backup tabs.
+
+Core v0.5 adds an always-on browser-session observability layer. It does not add
+an adapter capability or server endpoint, so base-v1, v0.3 and v0.4 consumers
+remain API-compatible.
 
 ## Design goals
 
@@ -52,6 +58,9 @@ additional Profiles/Backup tabs.
 - State-dependent base mutations remain locked until status is ready and while
   a previous mutation is still completing.
 - Stale overlapping status/log responses are prevented from replacing newer UI state.
+- Session diagnostics record typed operation metadata and allowlisted redacted state,
+  never arbitrary request payloads, shell commands, logs or job output.
+- Global draft UX never pretends independent mutations are one atomic "save all" action.
 - Every mutable value is validated in the server and again at the module/domain boundary.
 - Runtime session/upload/preview files remain outside the replaceable module directory.
 - Persistent configuration survives module updates under `/data/adb/<module-id>`.
@@ -106,12 +115,12 @@ core/manifest.txt                Files managed by core synchronization
 module/action.sh                 Secure browser launcher
 module/bin/module-control        Example module-owned base adapter
 module/config/*.default          Packaged defaults only
-module/webroot/                  Generic capability-driven UI + optional v0.3 layer
+module/webroot/                  Generic capability-driven UI + observability + optional extensions
 server/cmd/webui-server/         Native loopback server and tests
 scripts/sync-core.sh             Plan/apply core updates to another repo
 scripts/verify.sh                Policy, syntax, unit and integration checks
 docs/                            API, architecture, migration and security
-third_party/licenses/            Retained upstream MIT licenses
+third_party/licenses/            Retained licenses for imported third-party code
 ```
 
 ## Create a module
@@ -239,11 +248,12 @@ Review [SECURITY_MODEL.md](docs/SECURITY_MODEL.md) before extending the core.
 
 ## Credits and provenance
 
-The foundation combines clean implementations of ideas from several
-MIT-licensed Android root-module projects and first-party patterns from existing
-Lycidias93 modules. Attribution, pinned commits and retained licenses are in
-[CREDITS.md](CREDITS.md), [UPSTREAMS.md](UPSTREAMS.md), `NOTICE`, and
-`third_party/licenses/`.
+The foundation combines clean implementations of ideas from public Android
+root-module projects and first-party patterns from existing Lycidias93 modules.
+GPL-licensed projects may be listed only as design references when no code or
+assets are imported. Attribution and pinned commits are in
+[CREDITS.md](CREDITS.md), [UPSTREAMS.md](UPSTREAMS.md), `NOTICE`, and retained
+license files where applicable.
 
 No upstream project is represented as endorsing this template.
 
@@ -266,3 +276,15 @@ Reusable primitives:
 - one shared status timeout for HTTP status and server self-test.
 
 Modules that do not implement `capabilities-v04` continue to use the existing UI/API unchanged. See [Core v0.4 contract](docs/ROADMAP_V0_4.md).
+
+## Core v0.5 observability layer
+
+Core v0.5 keeps the base-v1, v0.3 and v0.4 server/adapter contracts unchanged and adds generic browser-session UX:
+
+- one global indicator for unsaved Settings, Profiles and Import drafts;
+- a bounded typed API operation timeline with result and duration;
+- a Diagnostics tab with safe, redacted snapshots of selected API state;
+- copyable diagnostics with no request bodies, query parameters, shell commands, logs or job output;
+- local discard through page reload instead of a cross-transaction "save all" action.
+
+See [Core v0.5 contract](docs/ROADMAP_V0_5.md).

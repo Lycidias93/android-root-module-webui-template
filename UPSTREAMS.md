@@ -10,7 +10,19 @@
 | `Aurora-Nasa-1/AMMF2` | `98d2ef7d0491f6524cee09c958ef239338b49d3c` | Logging, theme, localization and component concepts | Reference only |
 | `Drizzy07x/Supercharger_Pixel_9_Series` | `be76cbe57d01fa475196b7afb3729b9ad19f0a26` | WebUI readiness/busy-state, duplicate-action and stale-response regression patterns | Clean generic adaptation; no Supercharger tuning or device logic imported |
 
-Matching license texts are retained in `third_party/licenses/`.
+Matching license texts for imported/reimplemented MIT-licensed source work are
+retained in `third_party/licenses/`.
+
+## External design references — no code imported
+
+| Upstream | Pinned commit | Role | Code status |
+|---|---|---|---|
+| `RipperHybrid/AshLooper` (AshReXcue) | `6db87ffba007560eff443a0330037cd6a2563c2b` | Global unsaved-change awareness, session activity diagnostics and raw-state inspection concepts | Design reference only; GPL-3.0 code/assets were not imported or copied |
+
+Design-only references do not contribute source files or assets to this MIT
+repository. Their licenses are not relicensed by this project; implementation
+ideas are independently expressed behind this template's existing typed API and
+security model.
 
 ## First-party pattern sources
 
@@ -28,11 +40,11 @@ dependencies.
 
 1. Inspect the new source commit and license.
 2. Compare only the component relevant to the shared core.
-3. Import complete files or complete components.
-4. Update this document, `NOTICE`, `CREDITS.md`, and licenses when applicable.
+3. Import complete files or complete components only when the source license is compatible; otherwise keep the source design-reference-only and implement independently.
+4. Update this document, `NOTICE`, `CREDITS.md`, and licenses when applicable to imported material.
 5. Update `CORE_VERSION` for a contract or managed-file change.
 6. Run `scripts/verify.sh` and `scripts/build.sh`.
 7. Record security and migration impact in the pull request.
 
 Do not import assets, fonts, generated bundles or dependencies with an
-undocumented license.
+undocumented or incompatible license.

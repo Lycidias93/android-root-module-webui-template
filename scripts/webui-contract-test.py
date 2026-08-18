@@ -57,9 +57,9 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["race-guard.js", "app.js", "/v03.js", "/v04.js"]:
+if parser.scripts != ["race-guard.js", "observability.js", "app.js", "/v03.js", "/v04.js"]:
     failures.append(f"scripts={parser.scripts}")
-for stylesheet in ("app.css", "race-guard.css"):
+for stylesheet in ("app.css", "race-guard.css", "observability.css"):
     if stylesheet not in parser.links:
         failures.append(f"stylesheet_missing={stylesheet}")
 if 'aria-live="polite"' not in html:
@@ -101,6 +101,21 @@ for guard in (
 ):
     if guard not in race_guard:
         failures.append(f"race_guard={guard}")
+
+observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
+for guard in (
+    'const CORE_VERSION = "0.5.0"',
+    'const MAX_OPERATIONS = 200',
+    'window.fetch = async function observedFetch',
+    'sanitizeStatus',
+    'sanitizeJobs',
+    'SENSITIVE_KEY',
+    'beforeunload',
+    'suppressBeforeUnload',
+    'window.location.reload()',
+):
+    if guard not in observability:
+        failures.append(f"observability_guard={guard}")
 
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -147,7 +162,7 @@ for guard in (
     if guard not in v04:
         failures.append(f"v04_guard={guard}")
 
-for label, source in (("app", javascript), ("race_guard", race_guard), ("v03", v03), ("v04", v04)):
+for label, source in (("app", javascript), ("race_guard", race_guard), ("observability", observability), ("v03", v03), ("v04", v04)):
     for forbidden in (
         "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
         "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",

@@ -6,7 +6,8 @@ root = Path(__file__).resolve().parents[1]
 def text(path):
     return (root / path).read_text(encoding="utf-8")
 
-assert text("CORE_VERSION").strip() == "0.4.0"
+version = tuple(int(part) for part in text("CORE_VERSION").strip().split("."))
+assert len(version) == 3 and version >= (0, 4, 0)
 main = text("server/cmd/webui-server/main.go")
 v04 = text("server/cmd/webui-server/v04.go")
 index = text("module/webroot/index.html")

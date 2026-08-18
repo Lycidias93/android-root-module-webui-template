@@ -195,3 +195,25 @@ Domain logic stays in the originating module.
 ## Typed asynchronous workflow primitives
 
 Core v0.4 generalizes a safe pattern needed by return collection, backup/restore and diagnostics: browser inputs remain typed, references come from stable collection identities, inventory operations re-resolve the selected row, the server writes a private request file, and only one declared adapter job is invoked. Active duplicate work may be coalesced by declared keys. Domain phases and verification semantics remain module-owned.
+
+## AshReXcue / AshLooper observability inspiration
+
+Design reference: `RipperHybrid/AshLooper@6db87ffba007560eff443a0330037cd6a2563c2b`
+(GPL-3.0). This was a design review only; no AshLooper JavaScript, CSS, shell
+code, assets or other GPL-covered implementation was imported.
+
+Generic concepts independently implemented in core v0.5:
+
+- a single cross-surface indication that browser-local changes remain unsaved;
+- a session activity/operation view that makes troubleshooting easier;
+- a compact raw-state diagnostics view for advanced inspection.
+
+The shared implementation deliberately differs at the security boundary:
+
+- it records typed API metadata rather than shell commands;
+- raw state is allowlisted, bounded and redacted rather than a generic file viewer;
+- it keeps the one-time bootstrap → HttpOnly-cookie model;
+- it does not provide a root-manager exec bridge or CGI shell executor;
+- it does not allow a safety-lock force-edit bypass;
+- it does not chain independent mutations behind a misleading global `Save all`;
+- AshLooper-specific visual styling and module/domain logic are not adopted.
