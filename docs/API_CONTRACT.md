@@ -391,3 +391,23 @@ The browser sends the session cookie automatically with same-origin requests.
 The v0.3 import-preview upload endpoint uses the same exact Origin and
 `X-WebUI-Request` guard but accepts only declared bounded JSON/ZIP/octet-stream
 payload media instead of a JSON control request.
+
+## v0.4 typed async extension
+
+Core v0.4 adds a second optional extension. Existing base-v1 and v0.3 consumers remain valid.
+
+`GET /api/v1/v04/capabilities` reads `module-control capabilities-v04` with schema `root-module-webui.extensions.v2`.
+
+Typed jobs accept only declared `boolean`, `integer`, `string`, `enum`, or collection-backed `reference` parameters. `POST /api/v1/v04/jobs` validates the complete request, stages a private request file, and invokes only:
+
+```text
+module-control job-run-file <declared-job> <private-request-file>
+```
+
+Declared `dedupe_keys` coalesce only identical jobs that are still queued or running.
+
+`GET /api/v1/v04/reference?name=<declared-reference>` resolves the identity field of one declared v0.3 collection through `collection-get`; it is not a path/config browser.
+
+`POST /api/v1/v04/inventory-operation` accepts an operation name plus stable item ID. The server refreshes the bound inventory, requires that identity to still exist, then passes only the bound identity into the declared typed job.
+
+The shared frontend polls active work with bounded backoff and pauses polling while hidden. Declared phases are descriptive vocabulary only; no percentage progress is fabricated.

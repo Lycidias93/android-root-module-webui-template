@@ -23,16 +23,20 @@ required=(
   module/webroot/app.js
   module/webroot/app.css
   module/webroot/v03.js
+  module/webroot/v04.js
   server/cmd/webui-server/main.go
   server/cmd/webui-server/v03.go
   server/cmd/webui-server/v03_collection_digest.go
   server/cmd/webui-server/v03_test.go
+  server/cmd/webui-server/v04.go
+  server/cmd/webui-server/v04_test.go
   docs/API_CONTRACT.md
   docs/IMPORT_EXPORT_CONTRACT_V1.md
   docs/ARCHITECTURE.md
   docs/CORE_SYNC.md
   docs/MIGRATION_GUIDE.md
   docs/PATTERN_LIBRARY.md
+  docs/ROADMAP_V0_4.md
   docs/SECURITY_MODEL.md
 )
 
@@ -111,10 +115,14 @@ grep -Fq 'SameSite: http.SameSiteLaxMode' server/cmd/webui-server/main.go
 grep -Fq 'requestGuardHeader' server/cmd/webui-server/main.go
 grep -Fq 'root-module-webui.capabilities.v1' server/cmd/webui-server/main.go
 grep -Fq 'registerV03Handlers(mux, app)' server/cmd/webui-server/main.go
+grep -Fq 'registerV04Handlers(mux, app)' server/cmd/webui-server/main.go
+grep -Fq 'statusControlTimeout' server/cmd/webui-server/main.go
 grep -Fq 'root-module-webui.extensions.v1' server/cmd/webui-server/v03.go
 grep -Fq 'matching unexpired preview required' server/cmd/webui-server/v03.go
 grep -Fq 'file outside private upload directory' server/cmd/webui-server/v03.go
-if grep -Eq '0\.0\.0\.0|ListenAndServe\(' server/cmd/webui-server/main.go server/cmd/webui-server/v03.go; then
+grep -Fq 'root-module-webui.extensions.v2' server/cmd/webui-server/v04.go
+grep -Fq 'job-run-file' server/cmd/webui-server/v04.go
+if grep -Eq '0\.0\.0\.0|ListenAndServe\(' server/cmd/webui-server/main.go server/cmd/webui-server/v03.go server/cmd/webui-server/v04.go; then
   echo "FAIL unsafe_listener_pattern"
   exit 1
 fi
@@ -142,6 +150,7 @@ fi
 go vet ./...
 go test ./...
 python3 scripts/webui-contract-test.py
+python3 scripts/webui-v04-static.test.py
 ./scripts/integration-test.sh
 
 tmp=$(mktemp -d)
@@ -156,4 +165,5 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
   exit 1
 }
 
+echo "RESULT: WEBUI_CORE_V04_TYPED_ASYNC_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"

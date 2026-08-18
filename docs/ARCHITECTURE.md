@@ -191,3 +191,22 @@ bounded module-owned cache that the inventory endpoint reads.
 - Failed/expired v0.3 previews do not authorize later apply.
 - WebUI upload/runtime files are disposable and are not module state.
 - Removing or updating the module removes packaged WebUI code but leaves persistent state untouched unless the module explicitly provides a separately confirmed cleanup action.
+
+## Core v0.4 typed async flow
+
+```text
+browser typed form / inventory identity
+        |
+        v
+loopback server declaration + type/reference validation
+        |
+        +-- private request file
+        +-- active-job dedupe
+        v
+module-control job-run-file <declared-job> <private-request-file>
+        |
+        v
+bounded session job state/output
+```
+
+The core owns typed transport, request staging and lifecycle. The module adapter owns domain mutation and verification.

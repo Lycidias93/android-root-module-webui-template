@@ -81,3 +81,7 @@ consumer candidate must be rebuilt and reverified before device acceptance.
 7. Exercise enabled v0.3 preview/apply/import/export paths with safe fixtures.
 8. Record `webui.lock` in the migration PR.
 9. Do not publish a release until device verification is complete.
+
+## v0.4 consumers
+
+A consumer using typed async features pins `CORE_VERSION=0.4.0` and the exact template commit. Sync the v0.4 manifest as one unit, including `v04.js`, `v04.go` and their tests. A candidate built against an older core must be rebuilt and reverified after adopting v0.4.

@@ -32,12 +32,13 @@ import (
 var version = "dev"
 
 const (
-	maxBodyBytes       = 32 << 10
-	maxControlOutput   = 256 << 10
-	maxJobOutput       = 256 << 10
-	maxInventoryOutput = 512 << 10
-	sessionCookieName  = "root_module_webui_session"
-	requestGuardHeader = "X-WebUI-Request"
+	maxBodyBytes         = 32 << 10
+	maxControlOutput     = 256 << 10
+	maxJobOutput         = 256 << 10
+	maxInventoryOutput   = 512 << 10
+	sessionCookieName    = "root_module_webui_session"
+	requestGuardHeader   = "X-WebUI-Request"
+	statusControlTimeout = 15 * time.Second
 )
 
 var (
@@ -333,7 +334,7 @@ func main() {
 	cancel()
 
 	if selfTest {
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(context.Background(), statusControlTimeout)
 		defer cancel()
 		if _, err := app.runControl(ctx, maxControlOutput, "status"); err != nil {
 			logger.Fatalf("status self-test: %v", err)
@@ -399,6 +400,7 @@ func main() {
 	mux.HandleFunc("/api/v1/jobs/", app.requireSession(app.jobHandler))
 	mux.HandleFunc("/api/v1/inventory", app.requireSession(app.inventory))
 	registerV03Handlers(mux, app)
+	registerV04Handlers(mux, app)
 	mux.HandleFunc("/", app.pageOrAsset)
 
 	server := &http.Server{
@@ -721,7 +723,7 @@ func (a *application) status(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodGet)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), statusControlTimeout)
 	defer cancel()
 	output, err := a.runControl(ctx, maxControlOutput, "status")
 	if err != nil {

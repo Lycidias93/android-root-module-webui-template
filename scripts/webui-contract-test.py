@@ -57,7 +57,7 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["race-guard.js", "app.js", "/v03.js"]:
+if parser.scripts != ["race-guard.js", "app.js", "/v03.js", "/v04.js"]:
     failures.append(f"scripts={parser.scripts}")
 for stylesheet in ("app.css", "race-guard.css"):
     if stylesheet not in parser.links:
@@ -128,7 +128,26 @@ for guard in (
     if guard not in v03:
         failures.append(f"v03_guard={guard}")
 
-for label, source in (("app", javascript), ("race_guard", race_guard), ("v03", v03)):
+v04 = (ROOT / "module/webroot/v04.js").read_text(encoding="utf-8")
+for endpoint in (
+    "/api/v1/v04/capabilities", "/api/v1/v04/reference",
+    "/api/v1/v04/jobs", "/api/v1/v04/inventory-operation",
+):
+    if endpoint not in v04:
+        failures.append(f"v04_endpoint={endpoint}")
+for guard in (
+    'headers.set("X-WebUI-Request", "1")',
+    'credentials: "same-origin"',
+    'cache: "no-store"',
+    'document.hidden',
+    'visibilitychange',
+    'dedupe: reused active job',
+    'phases:',
+):
+    if guard not in v04:
+        failures.append(f"v04_guard={guard}")
+
+for label, source in (("app", javascript), ("race_guard", race_guard), ("v03", v03), ("v04", v04)):
     for forbidden in (
         "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
         "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",
@@ -160,6 +179,18 @@ for required in (
 ):
     if required not in server_v03:
         failures.append(f"v03_server_guard={required}")
+
+server_v04 = (ROOT / "server/cmd/webui-server/v04.go").read_text(encoding="utf-8")
+for required in (
+    'v04CapabilitySchema = "root-module-webui.extensions.v2"',
+    'job-run-file',
+    'dedupe_keys',
+    'loadV04ReferenceValues',
+    'resolveInventoryItem',
+    'inventory-operation',
+):
+    if required not in server_v04:
+        failures.append(f"v04_server_guard={required}")
 
 if failures:
     print("FAIL: webui_contract=" + ",".join(failures))
