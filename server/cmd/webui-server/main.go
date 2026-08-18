@@ -677,7 +677,7 @@ func (a *application) pageOrAsset(w http.ResponseWriter, r *http.Request) {
 		relative = "index.html"
 	}
 	switch relative {
-	case "index.html", "app.js", "app.css":
+	case "index.html", "app.js", "app.css", "race-guard.js", "race-guard.css", "observability.js", "observability.css":
 	default:
 		http.NotFound(w, r)
 		return
