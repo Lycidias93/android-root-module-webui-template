@@ -145,7 +145,9 @@ if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' mo
   echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
-node --check module/webroot/observability.js
+for file in module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
+  node --check "$file"
+done
 
 gofmt_output=$(gofmt -l server)
 if [[ -n "$gofmt_output" ]]; then
@@ -175,4 +177,5 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 
 echo "RESULT: WEBUI_CORE_V04_TYPED_ASYNC_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V05_OBSERVABILITY_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V06_STATEFUL_MOBILE_UX_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"
