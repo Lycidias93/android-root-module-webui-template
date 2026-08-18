@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const CORE_VERSION = "0.5.0";
+  const CORE_VERSION = "0.6.0";
   const MAX_OPERATIONS = 200;
   const MAX_SNAPSHOT_DEPTH = 6;
   const MAX_SNAPSHOT_ITEMS = 50;
@@ -43,6 +43,7 @@
       module: value.module,
       summary: value.summary,
       runtime: value.runtime,
+      action_state: value.action_state,
       safety: value.safety,
     });
   }
@@ -217,7 +218,7 @@
     document.querySelectorAll(".tab-panel").forEach(item => item.classList.remove("active"));
     button.classList.add("active");
     document.getElementById(panelID)?.classList.add("active");
-    button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    button.scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" });
     return true;
   }
 
