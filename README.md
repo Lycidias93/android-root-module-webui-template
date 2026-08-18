@@ -9,7 +9,7 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 
 ## Foundation status
 
-`CORE_VERSION=0.5.0`
+`CORE_VERSION=0.6.0`
 
 | Capability | Included |
 |---|---|
@@ -22,8 +22,12 @@ HttpOnly session cookie, and exposes only typed, allowlisted module operations.
 | Capability-driven settings and actions | Yes |
 | Capability-driven read-only navigation | Yes |
 | Adapter-defined Overview summary cards | Yes |
+| Adapter-reported active/blocked action state | Yes, optional status convention |
+| Preview-vs-apply action UX | Yes |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
+| Session-cached inventory switching + explicit live refresh | Yes |
+| Mobile responsive inventory rows and touch navigation | Yes |
 | Typed repeated-record/profile editor | Yes, optional v0.3 extension |
 | Preview-bound whole-collection apply | Yes, optional v0.3 extension |
 | Bounded schema-declared import/export | Yes, optional v0.3 extension |
@@ -40,14 +44,21 @@ The v0.3 administration extension is opt-in. Modules that do not implement
 `capabilities-v03` continue to use the same base v1 UI/API and do not show the
 additional Profiles/Backup tabs.
 
-Core v0.5 adds an always-on browser-session observability layer. It does not add
-an adapter capability or server endpoint, so base-v1, v0.3 and v0.4 consumers
-remain API-compatible.
+Core v0.5 added the browser-session observability layer. Core v0.6 keeps the
+server action allowlist unchanged and adds state-aware/mobile base-UI behavior:
+optional adapter-reported active/blocked actions, explicit Preview vs Apply
+wording, session-cached inventory switching with stale-response protection,
+and responsive mobile inventory/navigation rendering. Base-v1, v0.3 and v0.4
+consumers remain API-compatible when they omit the optional action-state object.
 
 ## Design goals
 
 - Capability-driven tabs for read-only dashboards without empty settings/action views.
 - Adapter-defined Overview summary cards with shared rendering and risk levels.
+- Optional action-state reporting makes the current effective choice visible without moving domain authority into JavaScript.
+- Dry-run is presented as **Preview only** and never visually confused with a productive Apply action.
+- Inventory view switching should be instant after first load; explicit Refresh performs the live adapter read.
+- Stale or out-of-order inventory responses must never replace the currently selected view.
 - One coherent core for read-only dashboards, settings modules, diagnostics,
   inventories, long-running workflows and typed administration.
 - Repeated records are edited as typed collections, never raw config or shell text.
@@ -129,12 +140,13 @@ third_party/licenses/            Retained licenses for imported third-party code
 2. Edit `module/module.prop`.
 3. Replace the example implementation in `module/bin/module-control`.
 4. Keep its `capabilities` document aligned with implemented base operations.
-5. If typed collections/import/export are needed, implement `capabilities-v03`
+5. Optionally report current `status.action_state` so stateful actions are marked active/blocked in the shared UI.
+6. If typed collections/import/export are needed, implement `capabilities-v03`
    and only the declared extension operations.
-6. Replace example defaults in `module/config/module.conf.default`.
-7. Keep the generic UI; extend module semantics through the adapter rather than
+7. Replace example defaults in `module/config/module.conf.default`.
+8. Keep the generic UI; extend module semantics through the adapter rather than
    forking browser shell/path behavior.
-8. Run:
+9. Run:
 
 ```text
 ./scripts/verify.sh
@@ -288,3 +300,19 @@ Core v0.5 keeps the base-v1, v0.3 and v0.4 server/adapter contracts unchanged an
 - local discard through page reload instead of a cross-transaction "save all" action.
 
 See [Core v0.5 contract](docs/ROADMAP_V0_5.md).
+
+## Core v0.6 state-aware mobile UX
+
+Core v0.6 keeps all existing typed server mutation contracts and adds reusable browser behavior for stateful root-module controls:
+
+- optional `status.action_state.active` marks declared actions as currently effective;
+- optional `status.action_state.blocked` gives display-safe dependency reasons while the server/module remain authoritative;
+- dry-run controls are labeled **Preview only**, and the action button explicitly says Preview, Apply, or Reapply;
+- loaded inventory views are cached for the browser session and switched without another root adapter invocation;
+- an explicit **Refresh view** performs the live inventory read;
+- request sequencing prevents stale inventory results from replacing the selected view;
+- base job polling is single-flight and pauses while the document is hidden;
+- operation errors no longer mark the whole local session disconnected unless the session itself is invalid;
+- mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
+
+The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
