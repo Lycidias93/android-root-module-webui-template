@@ -1,7 +1,18 @@
 (() => {
   "use strict";
 
-  const state = { capabilities: null, status: null, config: null, logText: "", jobs: [], polling: null };
+  const state = {
+    capabilities: null,
+    status: null,
+    config: null,
+    logText: "",
+    jobs: [],
+    polling: null,
+    jobsRefreshPromise: null,
+    inventoryCache: new Map(),
+    inventoryCurrent: "",
+    inventorySequence: 0,
+  };
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
 
@@ -15,10 +26,13 @@
     configForm: $("#configForm"),
     dirtyBadge: $("#dirtyBadge"),
     saveConfigButton: $("#saveConfigButton"),
+    actionStateSummary: $("#actionStateSummary"),
     actionCards: $("#actionCards"),
     jobLaunchers: $("#jobLaunchers"),
     jobList: $("#jobList"),
     inventoryLaunchers: $("#inventoryLaunchers"),
+    inventoryRefreshButton: $("#inventoryRefreshButton"),
+    inventoryMeta: $("#inventoryMeta"),
     inventoryOutput: $("#inventoryOutput"),
     logFilter: $("#logFilter"),
     logOutput: $("#logOutput"),
@@ -44,9 +58,11 @@
     showNotice.timer = window.setTimeout(() => ui.notice.classList.add("hidden"), 4500);
   }
 
-  function showFatal(error) {
-    ui.connectionBadge.textContent = "disconnected";
-    ui.connectionBadge.className = "badge danger";
+  function showError(error, connectionFatal = false) {
+    if (connectionFatal || error?.status === 401) {
+      ui.connectionBadge.textContent = "disconnected";
+      ui.connectionBadge.className = "badge danger";
+    }
     showNotice(error instanceof Error ? error.message : String(error), "danger");
   }
 
@@ -70,23 +86,66 @@
       } catch {
         // Keep the HTTP status when the body is not JSON.
       }
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
     const contentType = response.headers.get("content-type") || "";
     return contentType.includes("application/json") ? response.json() : response.text();
   }
 
-  function activateTab(button) {
+  function visibleTabs() {
+    return $$(".tab").filter(item => !item.hidden);
+  }
+
+  function activateTab(button, focus = false) {
     if (!button || button.hidden) return;
-    $$(".tab").forEach(item => item.classList.remove("active"));
+    $$(".tab").forEach(item => {
+      item.classList.remove("active");
+      item.setAttribute("aria-selected", "false");
+      item.tabIndex = -1;
+    });
     $$(".tab-panel").forEach(item => item.classList.remove("active"));
     button.classList.add("active");
-    $(`#${button.dataset.panel}`)?.classList.add("active");
-    button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    button.setAttribute("aria-selected", "true");
+    button.tabIndex = 0;
+    const panel = $(`#${button.dataset.panel}`);
+    panel?.classList.add("active");
+    if (focus) button.focus({ preventScroll: true });
+    window.requestAnimationFrame(() => {
+      button.scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" });
+    });
+
+    if (button.dataset.panel === "inventoryPanel" && !state.inventoryCurrent) {
+      const first = state.capabilities?.inventories?.[0];
+      if (first) loadInventory(first.name).catch(error => showError(error));
+    }
   }
 
   function wireTabs() {
-    $$(".tab").forEach(button => button.addEventListener("click", () => activateTab(button)));
+    const tabs = $$(".tab");
+    tabs.forEach(button => {
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", button.dataset.panel);
+      button.setAttribute("aria-selected", button.classList.contains("active") ? "true" : "false");
+      button.tabIndex = button.classList.contains("active") ? 0 : -1;
+      $(`#${button.dataset.panel}`)?.setAttribute("role", "tabpanel");
+      button.addEventListener("click", () => activateTab(button));
+      button.addEventListener("keydown", event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const available = visibleTabs();
+        const current = available.indexOf(button);
+        if (current < 0) return;
+        event.preventDefault();
+        const target = event.key === "Home"
+          ? available[0]
+          : event.key === "End"
+            ? available[available.length - 1]
+            : available[(current + (event.key === "ArrowRight" ? 1 : -1) + available.length) % available.length];
+        activateTab(target, true);
+      });
+    });
+    $(".tabs")?.setAttribute("role", "tablist");
   }
 
   function applyFeatureVisibility() {
@@ -124,6 +183,13 @@
     });
   }
 
+  function humanizeKey(value) {
+    return String(value)
+      .replaceAll(".", " · ")
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, match => match.toUpperCase());
+  }
+
   function renderStatus() {
     const status = state.status || {};
     const module = status.module || state.capabilities?.module || {};
@@ -149,13 +215,13 @@
 
     const details = element("dl", { className: "details-grid" });
     flatten(status.runtime || {}).forEach(([key, value]) => {
-      details.append(element("dt", { text: key }), element("dd", { text: value }));
+      details.append(element("dt", { text: humanizeKey(key) }), element("dd", { text: value }));
     });
     ui.statusDetails.replaceChildren(details);
 
     const safety = status.safety || {};
     ui.safetyCards.replaceChildren(...Object.entries(safety).map(([key, value]) =>
-      card(key.replaceAll("_", " "), value === true ? "PASS" : String(value), value === true ? "good" : "caution")
+      card(humanizeKey(key), value === true ? "PASS" : String(value), value === true ? "good" : "caution")
     ));
   }
 
@@ -233,25 +299,77 @@
     const response = await api("/api/v1/config", { method: "POST", body: JSON.stringify(readConfig()) });
     state.config = response.config || await api("/api/v1/config");
     ui.dirtyBadge.classList.add("hidden");
+    state.inventoryCache.clear();
     await refreshStatus();
     renderConfig();
     showNotice("Settings saved.");
   }
 
+  function actionState() {
+    const reported = state.status?.action_state || {};
+    return {
+      active: new Set(Array.isArray(reported.active) ? reported.active.map(String) : []),
+      blocked: reported.blocked && typeof reported.blocked === "object" && !Array.isArray(reported.blocked)
+        ? reported.blocked
+        : {},
+    };
+  }
+
+  function renderActionSummary(actions, current) {
+    if (!ui.actionStateSummary) return;
+    const active = actions.filter(definition => current.active.has(definition.name));
+    if (!active.length) {
+      ui.actionStateSummary.replaceChildren(
+        element("span", { className: "state-summary-label", text: "Current state" }),
+        element("span", { className: "muted", text: state.status ? "No stateful action reported as active." : "Loading…" }),
+      );
+      return;
+    }
+    ui.actionStateSummary.replaceChildren(
+      element("span", { className: "state-summary-label", text: "Currently active" }),
+      element("div", { className: "state-chips" }, active.map(definition =>
+        element("span", { className: "state-chip", text: definition.label })
+      )),
+    );
+  }
+
   function renderActions() {
     const actions = state.capabilities?.actions || [];
+    const current = actionState();
+    renderActionSummary(actions, current);
+
     ui.actionCards.replaceChildren(...actions.map(definition => {
-      const dryRun = element("input", { type: "checkbox", checked: Boolean(definition.supports_dry_run) });
+      const active = current.active.has(definition.name);
+      const blockedReason = current.blocked[definition.name] ? String(current.blocked[definition.name]) : "";
+      const dryRun = element("input", {
+        type: "checkbox",
+        checked: Boolean(definition.supports_dry_run),
+        attributes: { "aria-label": `${definition.label}: preview only` },
+      });
       const confirmation = element("input", {
         type: "text",
         placeholder: definition.requires_confirmation ? `Type ${definition.confirmation_text}` : "",
+        autocomplete: "off",
       });
-      const run = element("button", { type: "button", className: risk(definition.risk), text: definition.label });
+      const run = element("button", { type: "button", className: risk(definition.risk) });
+
       function syncRunState() {
-        run.disabled = definition.requires_confirmation && confirmation.value !== definition.confirmation_text;
+        const confirmationMissing = definition.requires_confirmation && confirmation.value !== definition.confirmation_text;
+        run.disabled = Boolean(blockedReason) || confirmationMissing;
+        const stateful = current.active.has(definition.name);
+        const verb = definition.supports_dry_run && dryRun.checked
+          ? stateful ? "Preview current setting" : "Preview change"
+          : stateful ? "Reapply current setting" : "Apply change";
+        run.textContent = verb;
+        run.setAttribute("aria-label", `${verb}: ${definition.label}`);
+        if (blockedReason) run.title = blockedReason;
+        else run.removeAttribute("title");
       }
+
       confirmation.addEventListener("input", syncRunState);
+      dryRun.addEventListener("change", syncRunState);
       syncRunState();
+
       run.addEventListener("click", async () => {
         run.disabled = true;
         try {
@@ -263,29 +381,44 @@
               confirmation: definition.requires_confirmation ? confirmation.value : "",
             }),
           });
+          if (!(definition.supports_dry_run && dryRun.checked)) state.inventoryCache.clear();
+          await refreshStatus();
           showNotice(result.message || `${definition.label} completed.`);
-          await refreshAll();
         } catch (error) {
-          showFatal(error);
+          showError(error);
         } finally {
           syncRunState();
         }
       });
+
       const controls = element("div", { className: "action-controls" });
-      if (definition.supports_dry_run) controls.append(element("label", { className: "toggle" }, [
-        dryRun, element("span", { text: "Dry-run" }),
+      if (definition.supports_dry_run) controls.append(element("label", { className: "toggle preview-toggle" }, [
+        dryRun,
+        element("span", {}, [
+          element("strong", { text: "Preview only" }),
+          element("small", { text: "Validate the request without changing runtime or persistent state." }),
+        ]),
       ]));
       if (definition.requires_confirmation) controls.append(element("label", { className: "field" }, [
         element("span", { text: "Confirmation" }), confirmation,
       ]));
+      if (blockedReason) controls.append(element("p", { className: "blocked-reason", text: blockedReason }));
       controls.append(run);
-      return element("article", { className: "action-card" }, [
+
+      const badges = element("div", { className: "action-badges" });
+      if (active) badges.append(element("span", { className: "badge good active-badge", text: "ACTIVE" }));
+      badges.append(element("span", { className: `badge ${risk(definition.risk)}`, text: definition.risk }));
+
+      return element("article", {
+        className: `action-card${active ? " active-state" : ""}${blockedReason ? " unavailable-state" : ""}`,
+        attributes: active ? { "aria-current": "true" } : {},
+      }, [
         element("header", {}, [
           element("div", {}, [
             element("h3", { text: definition.label }),
             element("p", { className: "muted", text: definition.description || "" }),
           ]),
-          element("span", { className: `badge ${risk(definition.risk)}`, text: definition.risk }),
+          badges,
         ]),
         controls,
       ]);
@@ -304,7 +437,7 @@
           await refreshJobs();
           startJobPolling();
         } catch (error) {
-          showFatal(error);
+          showError(error);
         } finally {
           button.disabled = false;
         }
@@ -363,14 +496,23 @@
   }
 
   async function refreshJobs() {
-    const response = await api("/api/v1/jobs");
-    state.jobs = response.data || [];
-    await renderJobs();
-    if (!state.jobs.some(job => ["queued", "running"].includes(job.status))) stopJobPolling();
+    if (state.jobsRefreshPromise) return state.jobsRefreshPromise;
+    state.jobsRefreshPromise = (async () => {
+      const response = await api("/api/v1/jobs");
+      state.jobs = response.data || [];
+      await renderJobs();
+      if (!state.jobs.some(job => ["queued", "running"].includes(job.status))) stopJobPolling();
+    })();
+    try {
+      await state.jobsRefreshPromise;
+    } finally {
+      state.jobsRefreshPromise = null;
+    }
   }
 
   function startJobPolling() {
-    if (!state.polling) state.polling = window.setInterval(() => refreshJobs().catch(showFatal), 1800);
+    if (document.hidden || state.polling) return;
+    state.polling = window.setInterval(() => refreshJobs().catch(error => showError(error)), 1800);
   }
 
   function stopJobPolling() {
@@ -378,37 +520,92 @@
     state.polling = null;
   }
 
+  function inventoryDefinition(name) {
+    return (state.capabilities?.inventories || []).find(definition => definition.name === name);
+  }
+
+  function syncInventoryLaunchers() {
+    ui.inventoryLaunchers.querySelectorAll("button[data-inventory-name]").forEach(button => {
+      const selected = button.dataset.inventoryName === state.inventoryCurrent;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    if (ui.inventoryRefreshButton) ui.inventoryRefreshButton.disabled = !state.inventoryCurrent;
+  }
+
   function renderInventoryLaunchers() {
     const inventories = state.capabilities?.inventories || [];
     ui.inventoryLaunchers.replaceChildren(...inventories.map(definition => {
-      const button = element("button", { type: "button", text: definition.label });
-      button.addEventListener("click", async () => {
-        button.disabled = true;
-        try {
-          renderInventory(await api(`/api/v1/inventory?name=${encodeURIComponent(definition.name)}`));
-        } catch (error) {
-          showFatal(error);
-        } finally {
-          button.disabled = false;
-        }
+      const button = element("button", {
+        type: "button",
+        text: definition.label,
+        className: "inventory-launcher",
+        attributes: {
+          "data-inventory-name": definition.name,
+          "aria-pressed": "false",
+          title: definition.description || definition.label,
+        },
       });
+      button.addEventListener("click", () => loadInventory(definition.name).catch(error => showError(error)));
       return button;
     }));
+    syncInventoryLaunchers();
   }
 
-  function renderInventory(response) {
+  function renderInventory(response, definition = null) {
     const columns = response.columns || [];
     const items = response.items || [];
     if (!columns.length || !items.length) {
       ui.inventoryOutput.replaceChildren(element("p", { className: "muted", text: "Inventory is empty." }));
       return;
     }
-    const table = element("table");
-    table.append(element("thead", {}, [element("tr", {}, columns.map(column => element("th", { text: column })))]));
+    const table = element("table", {
+      className: "inventory-table",
+      attributes: { "aria-label": definition?.label || response.name || "Inventory" },
+    });
+    table.append(element("thead", {}, [element("tr", {}, columns.map(column => element("th", { text: humanizeKey(column) })))]));
     table.append(element("tbody", {}, items.map(item =>
-      element("tr", {}, columns.map(column => element("td", { text: String(item[column] ?? "") })))
+      element("tr", {}, columns.map(column => element("td", {
+        text: String(item[column] ?? ""),
+        attributes: { "data-label": humanizeKey(column) },
+      })))
     )));
     ui.inventoryOutput.replaceChildren(table);
+  }
+
+  async function loadInventory(name, { force = false } = {}) {
+    const definition = inventoryDefinition(name);
+    if (!definition) throw new Error(`Unknown inventory: ${name}`);
+    state.inventoryCurrent = name;
+    const sequence = ++state.inventorySequence;
+    syncInventoryLaunchers();
+
+    const cached = state.inventoryCache.get(name);
+    if (cached && !force) {
+      renderInventory(cached.response, definition);
+      if (ui.inventoryMeta) ui.inventoryMeta.textContent = "Cached for this browser session · Refresh view for a live read.";
+      return;
+    }
+
+    if (ui.inventoryMeta) ui.inventoryMeta.textContent = force ? "Refreshing live inventory…" : "Loading inventory…";
+    if (!cached) ui.inventoryOutput.replaceChildren(element("p", { className: "muted", text: "Loading…" }));
+
+    const button = ui.inventoryLaunchers.querySelector(`button[data-inventory-name="${CSS.escape(name)}"]`);
+    button?.classList.add("loading");
+    button?.setAttribute("aria-busy", "true");
+
+    try {
+      const response = await api(`/api/v1/inventory?name=${encodeURIComponent(name)}`);
+      state.inventoryCache.set(name, { response, loadedAt: Date.now() });
+      if (sequence === state.inventorySequence && state.inventoryCurrent === name) {
+        renderInventory(response, definition);
+        if (ui.inventoryMeta) ui.inventoryMeta.textContent = "Live inventory loaded · switching views is now instant.";
+      }
+    } finally {
+      button?.classList.remove("loading");
+      button?.removeAttribute("aria-busy");
+      syncInventoryLaunchers();
+    }
   }
 
   function renderLog() {
@@ -426,9 +623,11 @@
   async function refreshStatus() {
     state.status = await api("/api/v1/status");
     renderStatus();
+    renderActions();
   }
 
   async function refreshAll() {
+    state.inventoryCache.clear();
     await Promise.all([
       refreshStatus(),
       state.capabilities?.features?.config
@@ -436,15 +635,16 @@
         : Promise.resolve(),
       state.capabilities?.features?.logs ? loadLog() : Promise.resolve(),
       state.capabilities?.features?.jobs ? refreshJobs() : Promise.resolve(),
+      state.inventoryCurrent ? loadInventory(state.inventoryCurrent, { force: true }) : Promise.resolve(),
     ]);
     renderConfig();
   }
 
   async function initialize() {
     wireTabs();
-    $("#refreshButton").addEventListener("click", () => refreshAll().then(() => showNotice("Refreshed.")).catch(showFatal));
-    ui.configForm.addEventListener("submit", event => saveConfig(event).catch(showFatal));
-    $("#reloadLogButton").addEventListener("click", () => loadLog().catch(showFatal));
+    $("#refreshButton").addEventListener("click", () => refreshAll().then(() => showNotice("Refreshed.")).catch(error => showError(error, true)));
+    ui.configForm.addEventListener("submit", event => saveConfig(event).catch(error => showError(error)));
+    $("#reloadLogButton").addEventListener("click", () => loadLog().catch(error => showError(error)));
     $("#copyLogButton").addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(ui.logOutput.textContent);
@@ -454,6 +654,20 @@
       }
     });
     ui.logFilter.addEventListener("input", renderLog);
+    ui.inventoryRefreshButton?.addEventListener("click", () => {
+      if (!state.inventoryCurrent) return;
+      loadInventory(state.inventoryCurrent, { force: true })
+        .then(() => showNotice("Inventory refreshed."))
+        .catch(error => showError(error));
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopJobPolling();
+      } else if (state.jobs.some(job => ["queued", "running"].includes(job.status))) {
+        refreshJobs().catch(error => showError(error));
+        startJobPolling();
+      }
+    });
 
     const response = await api("/api/v1/capabilities");
     state.capabilities = response.capabilities;
@@ -465,5 +679,5 @@
     if (state.jobs.some(job => ["queued", "running"].includes(job.status))) startJobPolling();
   }
 
-  initialize().catch(showFatal);
+  initialize().catch(error => showError(error, true));
 })();
