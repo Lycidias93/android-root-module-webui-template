@@ -51,7 +51,8 @@
     </section>
 
     <section id="actionsPanel" class="panel tab-panel" data-feature="actions">
-      <div class="panel-heading"><div><h2>Actions</h2><p>Allowlisted operations with risk and confirmation contracts.</p></div></div>
+      <div class="panel-heading"><div><h2>Actions</h2><p>Allowlisted operations with live state, preview and confirmation contracts.</p></div></div>
+      <div id="actionStateSummary" class="action-state-summary" aria-live="polite"></div>
       <div id="actionCards" class="stack"></div>
     </section>
 
@@ -62,8 +63,12 @@
     </section>
 
     <section id="inventoryPanel" class="panel tab-panel" data-feature="inventory">
-      <div class="panel-heading"><div><h2>Inventory</h2><p>Typed, module-provided inventory views.</p></div></div>
-      <div id="inventoryLaunchers" class="actions-row"></div>
+      <div class="panel-heading"><div><h2>Inventory</h2><p>Typed, module-provided inventory views. Loaded views are cached for instant switching.</p></div></div>
+      <div class="inventory-toolbar">
+        <div id="inventoryLaunchers" class="actions-row"></div>
+        <button id="inventoryRefreshButton" type="button" disabled>Refresh view</button>
+      </div>
+      <p id="inventoryMeta" class="inventory-meta" aria-live="polite"></p>
       <div id="inventoryOutput" class="table-wrap"></div>
     </section>
 
