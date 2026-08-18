@@ -1,6 +1,6 @@
 # WebUI core v0.4 typed async contract
 
-Status: implementation track
+Status: candidate implementation; full shared-core verification required before merge
 
 ## Goal
 
