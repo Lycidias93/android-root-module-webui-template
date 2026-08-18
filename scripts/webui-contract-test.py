@@ -45,7 +45,8 @@ parser.feed(html)
 expected_ids = {
     "moduleName", "moduleVersion", "connectionBadge", "notice", "statusCards",
     "statusDetails", "configForm", "dirtyBadge", "saveConfigButton",
-    "actionCards", "jobLaunchers", "jobList", "inventoryLaunchers",
+    "actionStateSummary", "actionCards", "jobLaunchers", "jobList",
+    "inventoryLaunchers", "inventoryRefreshButton", "inventoryMeta",
     "inventoryOutput", "logFilter", "logOutput", "safetyCards",
 }
 missing = expected_ids - parser.ids
@@ -80,13 +81,33 @@ for guard in (
     'cache: "no-store"',
     'function applyFeatureVisibility()',
     'Array.isArray(status.summary)',
-    'scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" })',
+    'scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" })',
     'function configuredState(definition)',
     'Configured · leave blank to preserve.',
+    'function actionState()',
+    'function renderActionSummary(actions, current)',
+    'Preview only',
+    'Preview current setting',
+    'Reapply current setting',
+    'state.inventoryCache',
+    'inventorySequence',
+    'aria-pressed',
+    'function loadInventory(name, { force = false } = {})',
     'function syncRunState()',
 ):
     if guard not in javascript:
         failures.append(f"guard={guard}")
+
+css = (ROOT / "module/webroot/app.css").read_text(encoding="utf-8")
+for guard in (
+    "scrollbar-width: none",
+    ".action-card.active-state",
+    ".inventory-launcher.active",
+    ".inventory-table td::before",
+    "overflow-wrap: anywhere",
+):
+    if guard not in css:
+        failures.append(f"css_guard={guard}")
 
 race_guard = (ROOT / "module/webroot/race-guard.js").read_text(encoding="utf-8")
 for guard in (
@@ -104,7 +125,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.5.0"',
+    'const CORE_VERSION = "0.6.0"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
@@ -120,7 +141,7 @@ for guard in (
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
     "/api/v1/v03/capabilities", "/api/v1/v03/collection",
-    "/api/v1/v03/import", "/api/v1/v03/import/apply", "/api/v1/v03/export",
+    "/api/v1/v03/import", "/api/v1/v03/import/apply", "/api/v1/export",
 ):
     if endpoint not in v03:
         failures.append(f"v03_endpoint={endpoint}")
