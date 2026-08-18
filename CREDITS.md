@@ -1,8 +1,9 @@
 # Credits
 
 This project is an original combined implementation maintained by
-**Lycidias93**. It consolidates proven ideas from public MIT-licensed upstreams
-and first-party module projects into one standalone browser WebUI foundation.
+**Lycidias93**. It consolidates proven ideas from public upstream references and
+first-party module projects into one standalone browser WebUI foundation while
+keeping imported code and license boundaries explicit.
 
 ## Public upstream projects
 
@@ -46,9 +47,18 @@ and first-party module projects into one standalone browser WebUI foundation.
   gating, duplicate-action prevention and stale-response handling concepts.
 - License: MIT
 
+### AshBorn — AshReXcue / AshLooper
+
+- Project: `RipperHybrid/AshLooper`
+- Pinned source: `6db87ffba007560eff443a0330037cd6a2563c2b`
+- Contribution: design-review inspiration for global unsaved-change awareness,
+  session activity diagnostics and raw-state inspection.
+- License: GPL-3.0; design reference only. No AshLooper JavaScript, CSS, shell
+  code, assets or other GPL-covered implementation was copied or imported.
+
 ## First-party pattern sources
 
-The v0.2 foundation also consolidates patterns developed in these Lycidias93
+The foundation also consolidates patterns developed in these Lycidias93
 projects:
 
 - Pixel Readable Fonts and Pixel Termux/MX500 Backup from
@@ -74,4 +84,5 @@ When importing external code or assets:
 5. Update `NOTICE` and this file.
 6. Add tests for every security-relevant adaptation.
 
-The listed upstream authors do not endorse this project.
+Design-only references must be identified as such and must not be represented as
+imported code. The listed upstream authors do not endorse this project.

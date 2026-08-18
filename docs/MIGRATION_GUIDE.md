@@ -141,6 +141,8 @@ Minimum:
 - import size/private-path/SHA/preview binding when enabled;
 - malformed/wrong-module/traversal/symlink import rejection in the module adapter;
 - default export secret/credential exclusion when enabled;
+- v0.5 diagnostics snapshot allowlist/redaction and bounded operation history;
+- v0.5 dirty-state marking/clearing without cross-transaction save behavior;
 - ZIP contents and permissions;
 - ARM64 Android cross-build.
 
@@ -161,6 +163,8 @@ Verify:
 - enabled typed editor round-trips the effective configuration;
 - enabled imports show accurate preview and create rollback before apply;
 - enabled exports contain only the declared safe data;
+- v0.5 Diagnostics exposes only allowlisted redacted state and session-local operation metadata;
+- global dirty state follows enabled Settings/Profile/Import drafts and clears only after authoritative success/reload;
 - WebUI failure does not affect boot/runtime;
 - module-specific rollback works.
 
@@ -178,3 +182,15 @@ Each migration is a separate PR with its own device verification and rollback.
 ## Opting into v0.4 typed async
 
 No migration is required for modules that remain on base-v1 or v0.3. To opt in, implement `capabilities-v04` plus only the declared `job-run-file` operations. Keep parameters typed and bounded and prefer collection-backed references or inventory-bound operations over free-form identifiers, paths or commands.
+
+## Adopting v0.5 observability
+
+No adapter migration is required solely for v0.5. Sync the complete core,
+including `observability.js`, `observability.css`, the managed `index.html` and
+the observability contract test, then pin the exact `CORE_VERSION=0.5.0`
+template commit. Custom WebUI markup must load observability after the race
+guard and before `app.js`/optional extension scripts.
+
+The diagnostics layer must remain session-local and redacted. Do not add module
+secrets, raw config, logs, job output or arbitrary inventory payloads merely to
+make Diagnostics more detailed.

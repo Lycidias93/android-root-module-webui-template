@@ -22,6 +22,10 @@ required=(
   module/webroot/index.html
   module/webroot/app.js
   module/webroot/app.css
+  module/webroot/race-guard.js
+  module/webroot/race-guard.css
+  module/webroot/observability.js
+  module/webroot/observability.css
   module/webroot/v03.js
   module/webroot/v04.js
   server/cmd/webui-server/main.go
@@ -30,6 +34,7 @@ required=(
   server/cmd/webui-server/v03_test.go
   server/cmd/webui-server/v04.go
   server/cmd/webui-server/v04_test.go
+  scripts/webui-observability-static.test.py
   docs/API_CONTRACT.md
   docs/IMPORT_EXPORT_CONTRACT_V1.md
   docs/ARCHITECTURE.md
@@ -37,6 +42,7 @@ required=(
   docs/MIGRATION_GUIDE.md
   docs/PATTERN_LIBRARY.md
   docs/ROADMAP_V0_4.md
+  docs/ROADMAP_V0_5.md
   docs/SECURITY_MODEL.md
 )
 
@@ -139,6 +145,7 @@ if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' mo
   echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
+node --check module/webroot/observability.js
 
 gofmt_output=$(gofmt -l server)
 if [[ -n "$gofmt_output" ]]; then
@@ -151,6 +158,7 @@ go vet ./...
 go test ./...
 python3 scripts/webui-contract-test.py
 python3 scripts/webui-v04-static.test.py
+python3 scripts/webui-observability-static.test.py
 ./scripts/integration-test.sh
 
 tmp=$(mktemp -d)
@@ -166,4 +174,5 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 }
 
 echo "RESULT: WEBUI_CORE_V04_TYPED_ASYNC_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V05_OBSERVABILITY_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"

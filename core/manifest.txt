@@ -4,6 +4,8 @@ module/webroot/app.js
 module/webroot/app.css
 module/webroot/race-guard.js
 module/webroot/race-guard.css
+module/webroot/observability.js
+module/webroot/observability.css
 module/webroot/v03.js
 module/webroot/v04.js
 server/cmd/webui-server/main.go
@@ -16,3 +18,4 @@ server/cmd/webui-server/v04_test.go
 scripts/webui-contract-test.py
 scripts/webui-race-regression.test.mjs
 scripts/webui-v04-static.test.py
+scripts/webui-observability-static.test.py

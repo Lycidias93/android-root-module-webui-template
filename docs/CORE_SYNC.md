@@ -73,15 +73,30 @@ consumer candidate must be rebuilt and reverified before device acceptance.
 ## Review after sync
 
 1. Inspect every changed core file.
-2. Update the target adapter to the current API contract.
+2. Update the target adapter to the current API contract when its enabled capabilities require it.
 3. Verify that no module-specific secret/path/command semantics leaked into the core.
 4. Run target repository tests.
 5. Build the exact module ZIP.
 6. Verify installation and Action launch on a test device.
 7. Exercise enabled v0.3 preview/apply/import/export paths with safe fixtures.
-8. Record `webui.lock` in the migration PR.
-9. Do not publish a release until device verification is complete.
+8. Exercise v0.5 Diagnostics and verify that only redacted allowlisted state appears.
+9. Verify global dirty-state marking/clearing on every enabled mutable UI surface.
+10. Record `webui.lock` in the migration PR.
+11. Do not publish a release until device verification is complete.
 
 ## v0.4 consumers
 
-A consumer using typed async features pins `CORE_VERSION=0.4.0` and the exact template commit. Sync the v0.4 manifest as one unit, including `v04.js`, `v04.go` and their tests. A candidate built against an older core must be rebuilt and reverified after adopting v0.4.
+A consumer using typed async features pins `CORE_VERSION=0.4.0` or newer and the exact template commit. Sync the v0.4 manifest as one unit, including `v04.js`, `v04.go` and their tests. A candidate built against an older core must be rebuilt and reverified after adopting v0.4.
+
+## v0.5 consumers
+
+Core v0.5 adds the synchronized `observability.js` and `observability.css` layer
+plus its static contract test and loader order in `index.html`. It changes no
+server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
+modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
+but must sync the complete manifest and pin the exact template commit.
+
+Consumers with custom WebUI markup must preserve the managed script order:
+`race-guard.js` → `observability.js` → `app.js` → optional `v03.js` → optional
+`v04.js`. Rebuild and reverify any existing release candidate after the core
+pin changes.
