@@ -14,6 +14,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The Action launcher must not treat the just-forked shell child as a dead
+# server before exec(2) has replaced it with the native server process.
+# Liveness is the only valid pre-ready break condition; executable identity is
+# checked after the server-created ready file exists.
+grep -Fq 'pid_alive "$SERVER_PID" || break' "$ROOT/module/action.sh"
+if grep -Fq 'is_our_pid "$SERVER_PID" || break' "$ROOT/module/action.sh"; then
+  echo "FAIL action_launcher_pre_ready_cmdline_race"
+  exit 1
+fi
+grep -Fq 'is_our_pid "$SERVER_PID" || fail "server_identity_mismatch"' "$ROOT/module/action.sh"
+grep -Fq '[ "$READY_PID" = "$SERVER_PID" ] || fail "server_pid_mismatch"' "$ROOT/module/action.sh"
+echo "RESULT: ACTION_LAUNCH_RACE_GUARD_PASS"
+
 cp -a "$ROOT/module" "$TMP/module"
 sed -i '1s|^#!/system/bin/sh$|#!/bin/sh|' "$TMP/module/bin/module-control"
 mkdir -p "$TMP/state" "$TMP/runtime"
