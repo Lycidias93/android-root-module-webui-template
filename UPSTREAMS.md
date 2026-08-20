@@ -13,16 +13,18 @@
 Matching license texts for imported/reimplemented MIT-licensed source work are
 retained in `third_party/licenses/`.
 
-## External design references — no code imported
+## External design and compatibility references — no code imported
 
 | Upstream | Pinned commit | Role | Code status |
 |---|---|---|---|
 | `RipperHybrid/AshLooper` (AshReXcue) | `6db87ffba007560eff443a0330037cd6a2563c2b` | Global unsaved-change awareness, session activity diagnostics and raw-state inspection concepts | Design reference only; GPL-3.0 code/assets were not imported or copied |
+| `adivenxnataly/KsuWebUI` | `20342d280a841f8b317603a7eefb1193a95ab626` | Compatibility reference for the `mui.kernelsu.org` WebView asset host, `window.ksu` bridge/module metadata and loopback cleartext host policy | Compatibility/design reference only; GPL-3.0 app code/assets were not imported or copied |
 
 Design-only references do not contribute source files or assets to this MIT
 repository. Their licenses are not relicensed by this project; implementation
 ideas are independently expressed behind this template's existing typed API and
-security model.
+security model. The KsuWebUI compatibility path uses the host bridge only for a
+fixed launcher handoff and redirects into the template's own loopback server.
 
 ## First-party pattern sources
 
