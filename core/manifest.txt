@@ -18,5 +18,6 @@ server/cmd/webui-server/v04.go
 server/cmd/webui-server/v04_test.go
 scripts/webui-contract-test.py
 scripts/webui-race-regression.test.mjs
+scripts/webui-embedded-host-bootstrap.test.mjs
 scripts/webui-v04-static.test.py
 scripts/webui-observability-static.test.py
