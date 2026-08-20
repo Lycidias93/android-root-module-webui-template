@@ -1,5 +1,6 @@
 module/action.sh
 module/webroot/index.html
+module/webroot/embedded-host-bootstrap.js
 module/webroot/app.js
 module/webroot/app.css
 module/webroot/race-guard.js
