@@ -30,8 +30,11 @@ malformed request, unsafe adapter extension and accidental secret packaging.
 
 - Strong Content Security Policy.
 - No inline scripts or remote assets.
-- No root-manager exec bridge in the core UI.
-- No generic shell or path endpoint.
+- The normal authenticated UI has no root-manager exec bridge and never proxies module operations through one.
+- A dedicated embedded-host bootstrap may use the host-provided KsuWebUI bridge only to start the module-owned loopback launcher in `--print-url` mode.
+- Embedded-host module paths are accepted only when they match `/data/adb/modules/<safe-module-id>` and the returned bootstrap URL is exactly `http://127.0.0.1:<bounded-port>/bootstrap?token=<hex-token>`.
+- After that bootstrap the WebView redirects to the same standalone loopback origin; status, config, actions, jobs, inventories and logs remain on the typed HTTP API.
+- No generic shell or path endpoint exists.
 - Mutations require exact Origin and `X-WebUI-Request: 1`.
 - Typed collection/import/export UI uses DOM text APIs rather than injected HTML.
 
@@ -66,7 +69,8 @@ malformed request, unsafe adapter extension and accidental secret packaging.
 
 ### Process
 
-- Server is Action-triggered only.
+- Server startup is explicitly user-triggered by module Action or a supported embedded-host WebUI selection.
+- Embedded-host startup is bootstrap-only: the host bridge starts the same short-lived loopback server and does not become the privileged operation transport.
 - PID cleanup verifies process identity.
 - Idle shutdown pauses while jobs are active.
 - Job concurrency and duration are bounded.
@@ -127,7 +131,8 @@ Do not merge a change that:
 
 - adds `0.0.0.0`, `localhost`, IPv6 or configurable bind addresses;
 - transmits secrets in argv, URL after bootstrap, logs or JavaScript storage;
-- accepts command strings from JavaScript;
+- uses a root-manager bridge for arbitrary commands or as a replacement API transport;
+- accepts command strings from normal UI state or user-entered fields;
 - adds a raw SSH-config editor or unrestricted filesystem picker;
 - accepts imports whose browser filename chooses a device path;
 - exposes credential material through generic export;
@@ -167,3 +172,24 @@ authoritative.
 Adapter authors remain responsible for never returning secrets under misleading
 non-sensitive field names. See `docs/ROADMAP_V0_5.md` for the exact allowlist and
 draft-clearing contract.
+
+## v0.6.1 embedded-host bootstrap boundary
+
+The embedded-host bootstrap is intentionally narrower than a native WebUI
+transport. It exists only for hosts that already expose a KernelSU-compatible
+`window.ksu` bridge while serving module assets under `mui.kernelsu.org`.
+
+- Only the module directory returned by `ksu.moduleInfo()` is used, and it must
+  match the fixed `/data/adb/modules/<safe-id>` shape.
+- The bridge invokes only a module-owned launcher with the fixed `--print-url`
+  argument. No browser field, action name, path, payload or user text is added
+  to that shell command.
+- The launcher starts the same loopback server used by the Action path and
+  returns its one-time bootstrap URL without opening another app.
+- The returned URL is syntax-checked for loopback host, bounded port and hex
+  token before navigation.
+- During this short handoff, `/api/v1/*` fetches against the asset host are held
+  instead of falling through to false static-file 404s.
+- After redirect, the embedded host bridge is no longer used by the WebUI. The
+  one-time token is exchanged for the same HttpOnly session cookie and the
+  normal server security model applies unchanged.
