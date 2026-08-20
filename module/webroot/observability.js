@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const CORE_VERSION = "0.6.0";
+  const CORE_VERSION = "0.6.1";
   const MAX_OPERATIONS = 200;
   const MAX_SNAPSHOT_DEPTH = 6;
   const MAX_SNAPSHOT_ITEMS = 50;
