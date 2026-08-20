@@ -10,6 +10,13 @@
 
   window.__ROOT_MODULE_WEBUI_EMBEDDED_BOOTSTRAP__ = true;
 
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const target = typeof input === "string" ? input : String(input?.url || "");
+    if (target.startsWith("/api/v1/")) return new Promise(() => {});
+    return nativeFetch(input, init);
+  };
+
   const name = document.querySelector("#moduleName");
   const version = document.querySelector("#moduleVersion");
   const badge = document.querySelector("#connectionBadge");
