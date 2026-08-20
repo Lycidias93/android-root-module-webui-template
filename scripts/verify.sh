@@ -20,6 +20,7 @@ required=(
   module/bin/module-control
   module/config/module.conf.default
   module/webroot/index.html
+  module/webroot/embedded-host-bootstrap.js
   module/webroot/app.js
   module/webroot/app.css
   module/webroot/race-guard.js
@@ -97,6 +98,9 @@ fi
 
 grep -Fq '/data/local/tmp/' module/action.sh
 grep -Fq -- '-token-file' module/action.sh
+grep -Fq -- '--print-url' module/action.sh
+grep -Fq 'WEBUI_BOOTSTRAP_URL=' module/action.sh
+grep -Fq 'bootstrap_transport=embedded_host_redirect' module/action.sh
 [[ $(grep -Fc "sed 's/-//g' < /proc/sys/kernel/random/uuid" module/action.sh) -eq 2 ]] || {
   echo "FAIL portable_uuid_filter_missing"
   exit 1
@@ -138,14 +142,25 @@ if grep -RInE 'https?://(cdn|unpkg|jsdelivr|fonts\.googleapis|google-analytics)'
   exit 1
 fi
 if grep -RInE 'ksu\.exec|apatch\.exec|magisk\.exec|webui\.exec|Android\.exec' module/webroot; then
-  echo "FAIL root_exec_bridge_in_core_ui"
+  echo "FAIL unrestricted_root_exec_bridge_in_core_ui"
+  exit 1
+fi
+grep -Fq 'const bridge = window.ksu;' module/webroot/embedded-host-bootstrap.js
+grep -Fq 'location.hostname === "mui.kernelsu.org"' module/webroot/embedded-host-bootstrap.js
+grep -Fq '/^\\/data\\/adb\\/modules\\/[A-Za-z0-9._-]+$/' module/webroot/embedded-host-bootstrap.js
+grep -Fq 'bridge.exec(command, `window.${callbackName}`);' module/webroot/embedded-host-bootstrap.js
+grep -Fq -- '--print-url' module/webroot/embedded-host-bootstrap.js
+grep -Fq 'WEBUI_BOOTSTRAP_URL=' module/webroot/embedded-host-bootstrap.js
+grep -Fq 'target.startsWith("/api/v1/")' module/webroot/embedded-host-bootstrap.js
+if grep -Eq 'apatch|magisk|Android\.exec|eval\(|new Function' module/webroot/embedded-host-bootstrap.js; then
+  echo "FAIL embedded_host_bootstrap_scope_expanded"
   exit 1
 fi
 if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' module/webroot; then
   echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
-for file in module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
+for file in module/webroot/embedded-host-bootstrap.js module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
   node --check "$file"
 done
 
@@ -178,4 +193,5 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 echo "RESULT: WEBUI_CORE_V04_TYPED_ASYNC_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V05_OBSERVABILITY_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V06_STATEFUL_MOBILE_UX_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V061_EMBEDDED_HOST_BOOTSTRAP_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"
