@@ -147,11 +147,15 @@ if grep -RInE 'ksu\.exec|apatch\.exec|magisk\.exec|webui\.exec|Android\.exec' mo
 fi
 grep -Fq 'const bridge = window.ksu;' module/webroot/embedded-host-bootstrap.js
 grep -Fq 'location.hostname === "mui.kernelsu.org"' module/webroot/embedded-host-bootstrap.js
-grep -Fq '/^\\/data\\/adb\\/modules\\/[A-Za-z0-9._-]+$/' module/webroot/embedded-host-bootstrap.js
+grep -Fq 'moduleDir.endsWith(`/${moduleId}`)' module/webroot/embedded-host-bootstrap.js
 grep -Fq 'bridge.exec(command, `window.${callbackName}`);' module/webroot/embedded-host-bootstrap.js
 grep -Fq -- '--print-url' module/webroot/embedded-host-bootstrap.js
 grep -Fq 'WEBUI_BOOTSTRAP_URL=' module/webroot/embedded-host-bootstrap.js
 grep -Fq 'target.startsWith("/api/v1/")' module/webroot/embedded-host-bootstrap.js
+if ! grep -Eq '/data.*adb.*modules.*A-Za-z0-9' module/webroot/embedded-host-bootstrap.js; then
+  echo "FAIL embedded_host_module_path_guard_missing"
+  exit 1
+fi
 if grep -Eq 'apatch|magisk|Android\.exec|eval\(|new Function' module/webroot/embedded-host-bootstrap.js; then
   echo "FAIL embedded_host_bootstrap_scope_expanded"
   exit 1
