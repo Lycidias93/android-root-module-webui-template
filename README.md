@@ -1,19 +1,24 @@
 # Android Root Module Standalone WebUI Template
 
 A public foundation for Magisk-compatible root modules with a local browser
-interface that works **without a companion app**.
+interface that works **without a companion app**. Supported embedded root-manager
+hosts such as KsuWebUI can optionally bootstrap the same standalone loopback
+session instead of acting as a second privileged API backend.
 
 The module Action button starts a short-lived native server on `127.0.0.1`,
 opens the default Android browser, exchanges a one-time bootstrap token for an
 HttpOnly session cookie, and exposes only typed, allowlisted module operations.
+An embedded KsuWebUI launch uses its host bridge only to start that same server
+and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.0`
+`CORE_VERSION=0.6.1`
 
 | Capability | Included |
 |---|---|
 | Magisk Action → default browser | Yes |
+| KsuWebUI embedded launch → same standalone loopback session | Yes |
 | Companion app, Termux, Python, CDN or cloud dependency | No |
 | Loopback-only dynamic port | Yes |
 | Token absent from server argv | Yes |
@@ -48,8 +53,10 @@ Core v0.5 added the browser-session observability layer. Core v0.6 keeps the
 server action allowlist unchanged and adds state-aware/mobile base-UI behavior:
 optional adapter-reported active/blocked actions, explicit Preview vs Apply
 wording, session-cached inventory switching with stale-response protection,
-and responsive mobile inventory/navigation rendering. Base-v1, v0.3 and v0.4
-consumers remain API-compatible when they omit the optional action-state object.
+and responsive mobile inventory/navigation rendering. Core v0.6.1 adds a
+bounded embedded-host bootstrap for KsuWebUI-style hosts while keeping every
+privileged module operation on the existing loopback HTTP API. Base-v1, v0.3
+and v0.4 consumers remain API-compatible when they omit optional state objects.
 
 ## Design goals
 
@@ -65,7 +72,8 @@ consumers remain API-compatible when they omit the optional action-state object.
 - Import is preview-first, bounded and staged only in the private WebUI runtime.
 - Generic export is secret-safe and cannot expose arbitrary device files.
 - Module-specific shell or native logic remains authoritative.
-- JavaScript never constructs or executes arbitrary shell commands.
+- Normal authenticated UI JavaScript never constructs or executes arbitrary shell commands.
+- The optional embedded-host bootstrap may construct only one fixed launcher command from a strictly validated installed-module path; no UI field, action name, payload or user text enters that command.
 - State-dependent base mutations remain locked until status is ready and while
   a previous mutation is still completing.
 - Stale overlapping status/log responses are prevented from replacing newer UI state.
@@ -81,51 +89,58 @@ consumers remain API-compatible when they omit the optional action-state object.
 ## Runtime flow
 
 ```text
-Module manager Action
-        |
-        v
-module/action.sh
-        |
-        +-- creates private /data/local/tmp/<module-id>-webui
-        +-- writes a 0600 one-time token file
-        +-- starts bundled arm64 server on 127.0.0.1:0
-        +-- opens /bootstrap?token=<one-time-token>
-        |
-        v
-server
-        |
-        +-- consumes and deletes token file
-        +-- sets short-lived HttpOnly SameSite=Lax cookie
-        +-- redirects to clean /
-        +-- serves offline UI and typed /api/v1 endpoints
-        +-- optionally exposes v0.3 typed collection/import/export endpoints
-        |
-        v
-module/bin/module-control
-        |
-        +-- capabilities
-        +-- status
-        +-- config-get / config-apply
-        +-- log
-        +-- action-file
-        +-- job-run
-        +-- inventory
-        +-- optional capabilities-v03
-        +-- optional collection-get / collection-preview / collection-apply
-        +-- optional import-preview / import-apply / export
+Module manager Action                         KsuWebUI module selection
+        |                                              |
+        v                                              v
+module/action.sh                               embedded-host-bootstrap.js
+        |                                              |
+        |                                              +-- validates /data/adb/modules/<id>
+        |                                              +-- invokes fixed launcher --print-url
+        |                                              +-- redirects WebView to 127.0.0.1 bootstrap URL
+        |                                              |
+        +----------------------+-----------------------+
+                               |
+                               v
+                    short-lived loopback server
+                               |
+                               +-- private /data/local/tmp/<module-id>-webui
+                               +-- 0600 one-time token file
+                               +-- listens on 127.0.0.1:0
+                               +-- consumes /bootstrap?token=<one-time-token>
+                               +-- sets short-lived HttpOnly SameSite=Lax cookie
+                               +-- redirects to clean /
+                               +-- serves offline UI and typed /api/v1 endpoints
+                               +-- optionally exposes v0.3 typed collection/import/export endpoints
+                               |
+                               v
+                    module/bin/module-control
+                               |
+                               +-- capabilities
+                               +-- status
+                               +-- config-get / config-apply
+                               +-- log
+                               +-- action-file
+                               +-- job-run
+                               +-- inventory
+                               +-- optional capabilities-v03
+                               +-- optional collection-get / collection-preview / collection-apply
+                               +-- optional import-preview / import-apply / export
 ```
 
 The server invokes `module-control` with an argument array. It never evaluates
-shell text supplied by the browser.
+shell text supplied by the browser. KsuWebUI is used only for the initial fixed
+launcher handoff; after redirect the WebUI uses the same authenticated HTTP path
+as the normal browser launch.
 
 ## Repository layout
 
 ```text
 CORE_VERSION                     Version of the reusable core
 core/manifest.txt                Files managed by core synchronization
-module/action.sh                 Secure browser launcher
+module/action.sh                 Secure browser/embedded-host launcher
 module/bin/module-control        Example module-owned base adapter
 module/config/*.default          Packaged defaults only
+module/webroot/embedded-host-bootstrap.js  Bounded KsuWebUI bootstrap redirect
 module/webroot/                  Generic capability-driven UI + observability + optional extensions
 server/cmd/webui-server/         Native loopback server and tests
 scripts/sync-core.sh             Plan/apply core updates to another repo
@@ -247,6 +262,7 @@ A contribution must not:
 
 - bind to `0.0.0.0`, Wi-Fi, mobile, Tailscale or another network interface;
 - put bootstrap or session secrets in server argv;
+- turn a root-manager bridge into a generic command or API transport;
 - add a generic command, raw SSH-config editor or unrestricted path endpoint;
 - let an uploaded filename choose a device path;
 - bypass exact Origin checks for mutations;
@@ -316,3 +332,24 @@ Core v0.6 keeps all existing typed server mutation contracts and adds reusable b
 - mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
 
 The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
+
+## Core v0.6.1 embedded-host bootstrap
+
+Core v0.6.1 keeps the typed API and standalone-server security model unchanged
+while adding compatibility with KsuWebUI-style embedded module hosts:
+
+- `embedded-host-bootstrap.js` detects the fixed `mui.kernelsu.org` asset host and
+  the host-provided KernelSU-compatible bridge;
+- the bridge is used only to invoke the installed module's fixed launcher with
+  `--print-url`;
+- the launcher returns a one-time `127.0.0.1` bootstrap URL without opening the
+  external browser;
+- the WebView validates and follows that URL, after which the ordinary HttpOnly
+  session and same-origin typed API apply;
+- temporary `/api/v1/*` requests against the asset host are held during the
+  redirect instead of surfacing misleading static-file `404 Not Found` errors;
+- no settings, actions, jobs, inventory or arbitrary shell input are transported
+  through the root-manager bridge.
+
+This lets the default-browser Action path and compatible embedded WebUI hosts
+coexist without maintaining two privileged backends.

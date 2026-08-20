@@ -66,6 +66,11 @@ On a clean task branch:
 Review `webui.lock` and all core changes. Pin the exact template commit and
 `CORE_VERSION`; do not build a release candidate from floating `main`.
 
+For Core v0.6.1 or newer, custom WebUI launchers must also preserve the
+`--print-url` contract if the module wants embedded KsuWebUI compatibility. The
+mode starts the same loopback server, prints exactly one validated bootstrap URL
+for the host handoff, and must not open an external browser.
+
 ## Phase 3: data separation
 
 Move:
@@ -143,6 +148,7 @@ Minimum:
 - default export secret/credential exclusion when enabled;
 - v0.5 diagnostics snapshot allowlist/redaction and bounded operation history;
 - v0.5 dirty-state marking/clearing without cross-transaction save behavior;
+- v0.6.1 embedded-host bootstrap validates the installed module path and loopback bootstrap URL and never proxies module operations over the host bridge;
 - ZIP contents and permissions;
 - ARM64 Android cross-build.
 
@@ -165,6 +171,7 @@ Verify:
 - enabled exports contain only the declared safe data;
 - v0.5 Diagnostics exposes only allowlisted redacted state and session-local operation metadata;
 - global dirty state follows enabled Settings/Profile/Import drafts and clears only after authoritative success/reload;
+- when embedded-host support is enabled, selecting the module in KsuWebUI starts the same loopback session without a false asset-host 404 and without opening a second browser;
 - WebUI failure does not affect boot/runtime;
 - module-specific rollback works.
 
@@ -194,3 +201,14 @@ guard and before `app.js`/optional extension scripts.
 The diagnostics layer must remain session-local and redacted. Do not add module
 secrets, raw config, logs, job output or arbitrary inventory payloads merely to
 make Diagnostics more detailed.
+
+## Adopting v0.6.1 embedded-host bootstrap
+
+No adapter API migration is required. Sync the complete v0.6.1 core, including
+`embedded-host-bootstrap.js`, the managed `index.html`, launcher behavior and
+verification rules. If the consumer uses a custom launcher, add the fixed
+`--print-url` mode without changing its normal Action behavior.
+
+Do not implement a parallel `ksu.exec` adapter for status/config/actions/jobs.
+The embedded host is only a launch transport; after redirect, the existing
+loopback server remains the single privileged API boundary.

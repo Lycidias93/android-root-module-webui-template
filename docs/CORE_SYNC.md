@@ -96,7 +96,22 @@ server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
 modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
 but must sync the complete manifest and pin the exact template commit.
 
+## v0.6.1 embedded-host consumers
+
+Core v0.6.1 adds `embedded-host-bootstrap.js` and the launcher `--print-url`
+contract. Supported root-manager WebViews such as KsuWebUI may use their existing
+root bridge only to start the bundled loopback server and obtain its one-time
+bootstrap URL. The WebView immediately redirects to `127.0.0.1`; all status,
+settings, actions, jobs and inventories continue through the same authenticated
+HTTP API as the normal browser path. The embedded host is therefore a bootstrap
+transport, not a second privileged API backend.
+
+Consumers with a custom launcher must implement the same `--print-url` result:
+`WEBUI_BOOTSTRAP_URL=http://127.0.0.1:<port>/bootstrap?token=<one-time-token>` and
+must not open an external browser in that mode. Consumers that keep the template
+`module/action.sh` receive this behavior directly.
+
 Consumers with custom WebUI markup must preserve the managed script order:
-`race-guard.js` → `observability.js` → `app.js` → optional `v03.js` → optional
-`v04.js`. Rebuild and reverify any existing release candidate after the core
-pin changes.
+`embedded-host-bootstrap.js` → `race-guard.js` → `observability.js` → `app.js` →
+optional `v03.js` → optional `v04.js`. Rebuild and reverify any existing release
+candidate after the core pin changes.

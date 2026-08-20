@@ -56,6 +56,19 @@ keeping imported code and license boundaries explicit.
 - License: GPL-3.0; design reference only. No AshLooper JavaScript, CSS, shell
   code, assets or other GPL-covered implementation was copied or imported.
 
+### Adinata — KsuWebUI
+
+- Project: `adivenxnataly/KsuWebUI`
+- Pinned source: `20342d280a841f8b317603a7eefb1193a95ab626`
+- Contribution: compatibility reference for the standalone root-module WebView
+  host, including the `mui.kernelsu.org` asset origin, `window.ksu` JavaScript
+  interface, module-directory metadata and explicit cleartext allowance for
+  loopback addresses.
+- License: GPL-3.0; compatibility/design reference only. No KsuWebUI Kotlin,
+  Java, XML, JavaScript, assets or other GPL-covered implementation was copied
+  or imported. The template independently implements a bounded bootstrap-only
+  handoff to its existing standalone loopback server.
+
 ## First-party pattern sources
 
 The foundation also consolidates patterns developed in these Lycidias93

@@ -95,10 +95,12 @@
         <li>A one-time bootstrap token becomes an HttpOnly browser session.</li>
         <li>Mutations require exact same-origin requests and a custom request guard.</li>
         <li>JavaScript cannot submit arbitrary shell commands or filesystem paths.</li>
-        <li>The WebUI starts only from the module Action button and is not a boot dependency.</li>
+        <li>Module Action can open the default browser; supported embedded root-manager hosts only bootstrap the same loopback session and then leave the manager bridge path.</li>
+        <li>The WebUI is not a boot dependency.</li>
       </ul>
     </section>
   </main>
+  <script src="embedded-host-bootstrap.js"></script>
   <script src="race-guard.js"></script>
   <script src="observability.js"></script>
   <script src="app.js"></script>

@@ -16,6 +16,13 @@ primitives. The core understands typed collections, bounded import/export and
 preview/apply state, but it still does not understand SSH, schedules, backup
 archive meaning or another module domain.
 
+Core v0.6.1 adds one optional **embedded-host bootstrap transport** without
+adding a fourth privileged layer. KsuWebUI-style hosts may use their existing
+`window.ksu` bridge only to invoke the installed module launcher with the fixed
+`--print-url` argument. The WebView then redirects to the ordinary loopback
+server and all module operations continue through the same authenticated HTTP
+API and module adapter.
+
 ## Storage model
 
 | Path | Lifetime | Contents |
@@ -30,14 +37,18 @@ backups belong in the persistent module state tree, not in the WebUI runtime.
 
 ## Authentication
 
-1. `action.sh` creates a random 64-hex-character token in a mode-0600 file.
-2. The server reads the file and generates an independent random session value.
-3. Android opens `/bootstrap?token=...`.
-4. The server performs constant-time comparison and permits exactly one use.
-5. The token file is deleted.
-6. The browser receives an HttpOnly, SameSite=Lax cookie.
-7. The browser is redirected to `/`, removing the token from the final URL.
+1. Normal Action or a supported embedded-host selection starts the module-owned launcher.
+2. The launcher creates a random 64-hex-character token in a mode-0600 file.
+3. The server reads the file and generates an independent random session value.
+4. The browser/WebView opens `/bootstrap?token=...` on `127.0.0.1`.
+5. The server performs constant-time comparison and permits exactly one use.
+6. The token file is deleted.
+7. The client receives an HttpOnly, SameSite=Lax cookie.
+8. The client is redirected to `/`, removing the token from the final URL.
 
+For a normal Action launch, Android opens the bootstrap URL in the default
+browser. For an embedded-host launch, the validated host bridge receives that
+same one-time URL from `--print-url` and navigates the current WebView to it.
 The server command line contains only paths and bounded settings, never tokens.
 
 ## Request protection
@@ -60,6 +71,28 @@ The v0.3 import-preview endpoint uses the same authenticated Origin/request
 guard but accepts only bounded declared JSON/ZIP/octet-stream upload media. The
 server creates the private upload filename; browser filenames never become
 device paths.
+
+## Embedded-host bootstrap
+
+The embedded bootstrap is intentionally not an API adapter.
+
+1. Static module assets are loaded by a supported host such as KsuWebUI under
+   `mui.kernelsu.org`.
+2. `embedded-host-bootstrap.js` confirms the fixed host plus the presence of
+   `ksu.exec` and `ksu.moduleInfo` capabilities.
+3. The returned module directory must match
+   `/data/adb/modules/<safe-module-id>` exactly.
+4. The bridge runs only the installed module's fixed launcher with
+   `--print-url`; no browser field or user value enters the command.
+5. The returned value must be a bounded
+   `http://127.0.0.1:<port>/bootstrap?token=<hex>` URL.
+6. The WebView navigates to that URL and the normal standalone server/session
+   path takes over.
+
+During this handoff, `/api/v1/*` calls against the static asset host are held so
+the regular frontend cannot surface a misleading static-file 404. No status,
+config, action, job, inventory or log operation is proxied through the host
+bridge.
 
 ## Capability schemas
 
@@ -187,7 +220,7 @@ bounded module-owned cache that the inventory endpoint reads.
 ## Failure isolation
 
 - The server is never started by `service.sh`.
-- Failure to launch the browser does not change module state.
+- Failure to launch the external browser or embedded-host bootstrap does not change persistent module state.
 - Failed/expired v0.3 previews do not authorize later apply.
 - WebUI upload/runtime files are disposable and are not module state.
 - Removing or updating the module removes packaged WebUI code but leaves persistent state untouched unless the module explicitly provides a separately confirmed cleanup action.
