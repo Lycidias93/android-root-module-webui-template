@@ -58,7 +58,7 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["race-guard.js", "observability.js", "app.js", "/v03.js", "/v04.js"]:
+if parser.scripts != ["embedded-host-bootstrap.js", "race-guard.js", "observability.js", "app.js", "/v03.js", "/v04.js"]:
     failures.append(f"scripts={parser.scripts}")
 for stylesheet in ("app.css", "race-guard.css", "observability.css"):
     if stylesheet not in parser.links:
@@ -67,6 +67,27 @@ if 'aria-live="polite"' not in html:
     failures.append("aria_live_missing")
 if parser.features != {"config", "actions", "jobs", "inventory", "logs"}:
     failures.append(f"features={sorted(parser.features)}")
+
+embedded = (ROOT / "module/webroot/embedded-host-bootstrap.js").read_text(encoding="utf-8")
+for guard in (
+    'const bridge = window.ksu;',
+    'location.hostname === "mui.kernelsu.org"',
+    '/^\\/data\\/adb\\/modules\\/[A-Za-z0-9._-]+$/.test(moduleDir)',
+    'moduleDir.endsWith(`/${moduleId}`)',
+    'bridge.exec(command, `window.${callbackName}`);',
+    '--print-url',
+    'WEBUI_BOOTSTRAP_URL=',
+    'http:\\/\\/127\\.0\\.0\\.1:',
+    'target.startsWith("/api/v1/")',
+    'location.replace(match[1])',
+):
+    if guard not in embedded:
+        failures.append(f"embedded_guard={guard}")
+for forbidden in (
+    "apatch", "magisk", "Android.exec", "eval(", "new Function", "innerHTML", "insertAdjacentHTML",
+):
+    if forbidden in embedded:
+        failures.append(f"embedded_forbidden={forbidden}")
 
 javascript = (ROOT / "module/webroot/app.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -125,7 +146,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.6.0"',
+    'const CORE_VERSION = "0.6.1"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
@@ -192,7 +213,7 @@ for label, source in (("app", javascript), ("race_guard", race_guard), ("observa
             failures.append(f"{label}_forbidden={forbidden}")
 
 action = (ROOT / "module/action.sh").read_text(encoding="utf-8")
-for required in ("-token-file", "/data/local/tmp/", "/bootstrap?token=", "-self-test"):
+for required in ("-token-file", "/data/local/tmp/", "/bootstrap?token=", "-self-test", "--print-url", "WEBUI_BOOTSTRAP_URL="):
     if required not in action:
         failures.append(f"action_contract={required}")
 if ' -token "$TOKEN"' in action or " -token " in action:
