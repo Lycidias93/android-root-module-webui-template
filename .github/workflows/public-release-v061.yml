@@ -1,0 +1,73 @@
+name: WebUI Core 0.6.1 public release
+
+on:
+  push:
+    branches:
+      - 'repo-maintenance/webui-core-v061-public-release-20260822'
+    paths:
+      - '.github/workflows/public-release-v061.yml'
+      - 'release-promotions/RELEASE_NOTES_v0.6.1.md'
+      - 'release-promotions/v0.6.1.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout release controller branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Verify Core source and browser regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/verify.sh
+          node --test scripts/webui-race-regression.test.mjs scripts/webui-embedded-host-bootstrap.test.mjs
+          ./scripts/build.sh
+
+      - name: Bind release to accepted Core payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=6fbd1b018a45fe5b1bebba7aeb9142423eab47fb
+          test "$(tr -d '\r\n' < CORE_VERSION)" = "0.6.1"
+          git diff --exit-code "$target" -- \
+            CORE_VERSION core module server scripts go.mod go.sum README.md SECURITY.md NOTICE CREDITS.md UPSTREAMS.md
+          echo "core_release_target=$target"
+          echo "core_payload_delta=none"
+
+      - name: Publish idempotent GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=v0.6.1
+          target=6fbd1b018a45fe5b1bebba7aeb9142423eab47fb
+          notes=release-promotions/RELEASE_NOTES_v0.6.1.md
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release_state=already_present"
+          else
+            gh release create "$tag" \
+              --target "$target" \
+              --title "Android Root Module WebUI Core 0.6.1" \
+              --notes-file "$notes"
+            echo "release_state=created"
+          fi
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+          test "$(git rev-list -n 1 "$tag")" = "$target"
+          gh release view "$tag" --json isDraft,isPrerelease,tagName,url --jq '.tagName + " draft=" + (.isDraft|tostring) + " prerelease=" + (.isPrerelease|tostring) + " " + .url'
+          test "$(gh release view "$tag" --json isDraft --jq '.isDraft')" = "false"
+          test "$(gh release view "$tag" --json isPrerelease --jq '.isPrerelease')" = "false"
+          echo "RESULT: WEBUI_CORE_V061_PUBLIC_RELEASE_DONE outcome=success workflow_exit_code=0"
