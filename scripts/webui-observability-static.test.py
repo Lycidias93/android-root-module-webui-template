@@ -52,6 +52,8 @@ assert 'snapshots.set' in js and 'operations.push' in js
 assert 'embedded-host-bootstrap.js' in index and 'observability.css' in index and 'observability.js' in index
 assert index.index('embedded-host-bootstrap.js') < index.index('race-guard.js') < index.index('observability.js') < index.index('app.js') < index.index('/v03.js') < index.index('/v04.js')
 assert '.core-dirty-bar' in css and '.core-operation-entry' in css
+assert '.shell {' in css and 'padding-bottom: calc(104px + env(safe-area-inset-bottom));' in css
+assert 'padding-bottom: calc(190px + env(safe-area-inset-bottom));' in css
 assert version == "0.6.1", f"expected CORE_VERSION 0.6.1, got {version}"
 if manifest:
     assert "module/webroot/embedded-host-bootstrap.js" in manifest
