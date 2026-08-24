@@ -1,3 +1,6 @@
+.shell {
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
 .core-dirty-bar {
   position: fixed;
   z-index: 50;
@@ -46,6 +49,7 @@
 }
 .core-raw-state { max-height: 46vh; }
 @media (max-width: 620px) {
+  .shell { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
   .core-dirty-bar { align-items: stretch; flex-direction: column; }
   .core-dirty-bar .actions-row { width: 100%; }
   .core-dirty-bar button { flex: 1; }
