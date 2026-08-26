@@ -82,6 +82,11 @@ second_code=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/bootstrap?token=$TO
 [[ "$second_code" == 403 ]]
 
 curl -fsS -b "$COOKIE" "$BASE/" | grep -Fq 'Root Module WebUI'
+for asset in app.css race-guard.css observability.css embedded-host-bootstrap.js race-guard.js observability.js app.js v03.js v04.js; do
+  curl -fsS -b "$COOKIE" "$BASE/$asset" >/dev/null
+done
+echo "RESULT: STATIC_ASSET_HTTP_ROUTES_PASS"
+
 curl -fsS -b "$COOKIE" "$BASE/api/v1/capabilities" | grep -Fq 'root-module-webui.capabilities.v1'
 curl -fsS -b "$COOKIE" "$BASE/api/v1/status" | grep -Fq 'standalone_webui_example'
 
