@@ -36,12 +36,14 @@ required=(
   server/cmd/webui-server/v04.go
   server/cmd/webui-server/v04_test.go
   scripts/webui-observability-static.test.py
+  scripts/webui-release-audit.py
   docs/API_CONTRACT.md
   docs/IMPORT_EXPORT_CONTRACT_V1.md
   docs/ARCHITECTURE.md
   docs/CORE_SYNC.md
   docs/MIGRATION_GUIDE.md
   docs/PATTERN_LIBRARY.md
+  docs/RELEASE_AUDIT.md
   docs/ROADMAP_V0_4.md
   docs/ROADMAP_V0_5.md
   docs/SECURITY_MODEL.md
@@ -180,6 +182,7 @@ go test ./...
 python3 scripts/webui-contract-test.py
 python3 scripts/webui-v04-static.test.py
 python3 scripts/webui-observability-static.test.py
+python3 scripts/webui-release-audit.py --self-test
 ./scripts/integration-test.sh
 
 tmp=$(mktemp -d)
