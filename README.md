@@ -145,7 +145,8 @@ module/webroot/                  Generic capability-driven UI + observability + 
 server/cmd/webui-server/         Native loopback server and tests
 scripts/sync-core.sh             Plan/apply core updates to another repo
 scripts/verify.sh                Policy, syntax, unit and integration checks
-docs/                            API, architecture, migration and security
+scripts/webui-release-audit.py   Pre-release HTTP/static-route contract audit
+docs/                            API, architecture, migration, security and release-audit policy
 third_party/licenses/            Retained licenses for imported third-party code
 ```
 
@@ -171,6 +172,18 @@ third_party/licenses/            Retained licenses for imported third-party code
 The installable ZIP and `build-manifest.json` are written to `dist/`. The
 manifest records SHA-256 and size without publishing a per-ZIP `.sha256`
 sidecar.
+
+## Release audit
+
+Any release candidate that changes HTTP handling, WebUI, WebUI Core/server/static assets, embedded-host bootstrap, API/schema behavior, or a WebUI-backed module adapter must additionally pass the candidate-bound release audit before publication:
+
+```text
+./scripts/verify.sh
+python3 scripts/webui-release-audit.py
+./scripts/build.sh
+```
+
+The exact installed candidate must then pass the consumer repository's device WebUI audit, including HTTP reachability of every shipped page-referenced asset and a safe Settings `GET -> POST -> GET/effective-state` round-trip when config is enabled. Package/install/postboot verification by itself is not full WebUI functional acceptance. See [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md).
 
 ## Module adapter boundary
 

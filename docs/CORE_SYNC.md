@@ -76,13 +76,16 @@ consumer candidate must be rebuilt and reverified before device acceptance.
 2. Update the target adapter to the current API contract when its enabled capabilities require it.
 3. Verify that no module-specific secret/path/command semantics leaked into the core.
 4. Run target repository tests.
-5. Build the exact module ZIP.
-6. Verify installation and Action launch on a test device.
-7. Exercise enabled v0.3 preview/apply/import/export paths with safe fixtures.
-8. Exercise v0.5 Diagnostics and verify that only redacted allowlisted state appears.
-9. Verify global dirty-state marking/clearing on every enabled mutable UI surface.
-10. Record `webui.lock` in the migration PR.
-11. Do not publish a release until device verification is complete.
+5. Run the candidate-bound WebUI release audit from [RELEASE_AUDIT.md](RELEASE_AUDIT.md), including `python3 scripts/webui-release-audit.py`.
+6. Build the exact module ZIP.
+7. Verify installation and Action launch on a test device.
+8. Exercise every enabled HTTP/WebUI surface on the exact installed candidate; Settings requires a safe `GET -> POST -> GET/effective-state` round-trip when config is enabled.
+9. Exercise enabled v0.3 preview/apply/import/export paths with safe fixtures.
+10. Exercise v0.5 Diagnostics and verify that only redacted allowlisted state appears.
+11. Verify global dirty-state marking/clearing on every enabled mutable UI surface.
+12. Verify every script/stylesheet referenced by the shipped page returns the expected HTTP response; referenced asset 404s are release blockers.
+13. Record `webui.lock` in the migration PR.
+14. Do not publish a release until repository and exact-device WebUI release audits both report `verdict=pass` and `failure_count=0`.
 
 ## v0.4 consumers
 
