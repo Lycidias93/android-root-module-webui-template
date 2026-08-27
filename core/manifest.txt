@@ -2,7 +2,6 @@ module/action.sh
 module/webroot/index.html
 module/webroot/embedded-host-bootstrap.js
 module/webroot/app.js
-module/webroot/action-output.js
 module/webroot/app.css
 module/webroot/race-guard.js
 module/webroot/race-guard.css
