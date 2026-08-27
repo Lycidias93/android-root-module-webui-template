@@ -58,7 +58,7 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["embedded-host-bootstrap.js", "race-guard.js", "observability.js", "app.js", "action-output.js", "/v03.js", "/v04.js"]:
+if parser.scripts != ["embedded-host-bootstrap.js", "race-guard.js", "observability.js", "app.js", "/v03.js", "/v04.js"]:
     failures.append(f"scripts={parser.scripts}")
 for stylesheet in ("app.css", "race-guard.css", "observability.css"):
     if stylesheet not in parser.links:
@@ -119,7 +119,20 @@ for guard in (
     if guard not in javascript:
         failures.append(f"guard={guard}")
 
-action_output = (ROOT / "module/webroot/action-output.js").read_text(encoding="utf-8")
+observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
+for guard in (
+    'const CORE_VERSION = "0.6.2"',
+    'const MAX_OPERATIONS = 200',
+    'window.fetch = async function observedFetch',
+    'sanitizeStatus',
+    'sanitizeJobs',
+    'SENSITIVE_KEY',
+    'beforeunload',
+    'suppressBeforeUnload',
+    'window.location.reload()',
+):
+    if guard not in observability:
+        failures.append(f"observability_guard={guard}")
 for guard in (
     'root-module-webui.action-output.v1',
     'sessionStorage',
@@ -128,7 +141,7 @@ for guard in (
     'url?.pathname === "/api/v1/action"',
     'payload?.ok === false ? "reported warning" : "completed"',
 ):
-    if guard not in action_output:
+    if guard not in observability:
         failures.append(f"action_output_guard={guard}")
 
 css = (ROOT / "module/webroot/app.css").read_text(encoding="utf-8")
@@ -155,21 +168,6 @@ for guard in (
 ):
     if guard not in race_guard:
         failures.append(f"race_guard={guard}")
-
-observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
-for guard in (
-    'const CORE_VERSION = "0.6.2"',
-    'const MAX_OPERATIONS = 200',
-    'window.fetch = async function observedFetch',
-    'sanitizeStatus',
-    'sanitizeJobs',
-    'SENSITIVE_KEY',
-    'beforeunload',
-    'suppressBeforeUnload',
-    'window.location.reload()',
-):
-    if guard not in observability:
-        failures.append(f"observability_guard={guard}")
 
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -216,7 +214,7 @@ for guard in (
     if guard not in v04:
         failures.append(f"v04_guard={guard}")
 
-for label, source in (("app", javascript), ("action_output", action_output), ("race_guard", race_guard), ("observability", observability), ("v03", v03), ("v04", v04)):
+for label, source in (("app", javascript), ("race_guard", race_guard), ("observability", observability), ("v03", v03), ("v04", v04)):
     for forbidden in (
         "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
         "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",
