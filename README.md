@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.1`
+`CORE_VERSION=0.6.2`
 
 | Capability | Included |
 |---|---|
@@ -29,6 +29,7 @@ and then redirects the WebView to the authenticated loopback session.
 | Adapter-defined Overview summary cards | Yes |
 | Adapter-reported active/blocked action state | Yes, optional status convention |
 | Preview-vs-apply action UX | Yes |
+| Persistent action result history | Yes, browser-session scoped |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
 | Session-cached inventory switching + explicit live refresh | Yes |
@@ -55,8 +56,10 @@ optional adapter-reported active/blocked actions, explicit Preview vs Apply
 wording, session-cached inventory switching with stale-response protection,
 and responsive mobile inventory/navigation rendering. Core v0.6.1 adds a
 bounded embedded-host bootstrap for KsuWebUI-style hosts while keeping every
-privileged module operation on the existing loopback HTTP API. Base-v1, v0.3
-and v0.4 consumers remain API-compatible when they omit optional state objects.
+privileged module operation on the existing loopback HTTP API. Core v0.6.2
+keeps action results visible for the browser session and labels safe read-only
+actions as checks instead of implying a mutation. Base-v1, v0.3 and v0.4
+consumers remain API-compatible when they omit optional state objects.
 
 ## Design goals
 
@@ -64,6 +67,8 @@ and v0.4 consumers remain API-compatible when they omit optional state objects.
 - Adapter-defined Overview summary cards with shared rendering and risk levels.
 - Optional action-state reporting makes the current effective choice visible without moving domain authority into JavaScript.
 - Dry-run is presented as **Preview only** and never visually confused with a productive Apply action.
+- Safe read-only actions are labelled as checks, not as state-changing Apply operations.
+- Action output remains visible and copyable for the browser session instead of existing only in a short-lived toast.
 - Inventory view switching should be instant after first load; explicit Refresh performs the live adapter read.
 - Stale or out-of-order inventory responses must never replace the currently selected view.
 - One coherent core for read-only dashboards, settings modules, diagnostics,
@@ -183,7 +188,7 @@ python3 scripts/webui-release-audit.py
 ./scripts/build.sh
 ```
 
-The exact installed candidate must then pass the consumer repository's device WebUI audit, including HTTP reachability of every shipped page-referenced asset and a safe Settings `GET -> POST -> GET/effective-state` round-trip when config is enabled. Package/install/postboot verification by itself is not full WebUI functional acceptance. See [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md).
+The exact installed candidate must then pass the consumer repository's device WebUI audit, including HTTP reachability of every shipped page-referenced asset, a safe Settings `GET -> POST -> GET/effective-state` round-trip when config is enabled, and real execution of every declared safe/read-only action. Mutating actions must be exercised against isolated disposable state when a real-device production run would change user data. Action-result persistence and read-only button semantics are part of functional acceptance. Package/install/postboot verification by itself is not full WebUI functional acceptance. See [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md).
 
 ## Module adapter boundary
 
@@ -366,3 +371,21 @@ while adding compatibility with KsuWebUI-style embedded module hosts:
 
 This lets the default-browser Action path and compatible embedded WebUI hosts
 coexist without maintaining two privileged backends.
+
+## Core v0.6.2 persistent action results
+
+Core v0.6.2 keeps the typed action API unchanged and fixes two base-UI semantics
+that matter during real device operation:
+
+- successful and failed `/api/v1/action` responses are mirrored into a bounded,
+  copyable action-result history that persists for the current browser tab;
+- the short-lived top notice remains available for lightweight feedback, but it
+  is no longer the only place where action output can be inspected;
+- actions declared `risk=safe` are labelled **Run check** instead of **Apply
+  change**, so read-only diagnostics are not presented as mutations;
+- action history is bounded to eight entries and truncates individual messages
+  before storing them in `sessionStorage`.
+
+Consumer device acceptance must exercise declared safe actions for real and
+must verify these presentation semantics; static listener presence alone is not
+functional acceptance.
