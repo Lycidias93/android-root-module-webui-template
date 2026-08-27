@@ -27,6 +27,16 @@ grep -Fq 'is_our_pid "$SERVER_PID" || fail "server_identity_mismatch"' "$ROOT/mo
 grep -Fq '[ "$READY_PID" = "$SERVER_PID" ] || fail "server_pid_mismatch"' "$ROOT/module/action.sh"
 echo "RESULT: ACTION_LAUNCH_RACE_GUARD_PASS"
 
+# Action UX is part of the runtime contract: safe read-only actions must not be
+# labelled as mutations, and action output must survive the transient notice.
+grep -Fq '<script src="action-output.js"></script>' "$ROOT/module/webroot/index.html"
+grep -Fq 'root-module-webui.action-output.v1' "$ROOT/module/webroot/action-output.js"
+grep -Fq 'sessionStorage' "$ROOT/module/webroot/action-output.js"
+grep -Fq 'Latest action result' "$ROOT/module/webroot/action-output.js"
+grep -Fq 'Run check' "$ROOT/module/webroot/action-output.js"
+grep -Fq 'url?.pathname === "/api/v1/action"' "$ROOT/module/webroot/action-output.js"
+echo "RESULT: ACTION_OUTPUT_PERSISTENCE_STATIC_PASS"
+
 cp -a "$ROOT/module" "$TMP/module"
 sed -i '1s|^#!/system/bin/sh$|#!/bin/sh|' "$TMP/module/bin/module-control"
 mkdir -p "$TMP/state" "$TMP/runtime"
@@ -82,7 +92,7 @@ second_code=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/bootstrap?token=$TO
 [[ "$second_code" == 403 ]]
 
 curl -fsS -b "$COOKIE" "$BASE/" | grep -Fq 'Root Module WebUI'
-for asset in app.css race-guard.css observability.css embedded-host-bootstrap.js race-guard.js observability.js app.js v03.js v04.js; do
+for asset in app.css race-guard.css observability.css embedded-host-bootstrap.js race-guard.js observability.js app.js action-output.js v03.js v04.js; do
   curl -fsS -b "$COOKIE" "$BASE/$asset" >/dev/null
 done
 echo "RESULT: STATIC_ASSET_HTTP_ROUTES_PASS"
