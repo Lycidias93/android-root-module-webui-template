@@ -27,6 +27,16 @@ grep -Fq 'is_our_pid "$SERVER_PID" || fail "server_identity_mismatch"' "$ROOT/mo
 grep -Fq '[ "$READY_PID" = "$SERVER_PID" ] || fail "server_pid_mismatch"' "$ROOT/module/action.sh"
 echo "RESULT: ACTION_LAUNCH_RACE_GUARD_PASS"
 
+# Action UX is part of the runtime contract: safe read-only actions must not be
+# labelled as mutations, and action output must survive the transient notice.
+grep -Fq 'root-module-webui.action-output.v1' "$ROOT/module/webroot/observability.js"
+grep -Fq 'sessionStorage' "$ROOT/module/webroot/observability.js"
+grep -Fq 'Latest action result' "$ROOT/module/webroot/observability.js"
+grep -Fq 'Run check' "$ROOT/module/webroot/observability.js"
+grep -Fq 'url?.pathname === "/api/v1/action"' "$ROOT/module/webroot/observability.js"
+grep -Fq 'payload?.ok === false ? "reported warning" : "completed"' "$ROOT/module/webroot/observability.js"
+echo "RESULT: ACTION_OUTPUT_PERSISTENCE_STATIC_PASS"
+
 cp -a "$ROOT/module" "$TMP/module"
 sed -i '1s|^#!/system/bin/sh$|#!/bin/sh|' "$TMP/module/bin/module-control"
 mkdir -p "$TMP/state" "$TMP/runtime"

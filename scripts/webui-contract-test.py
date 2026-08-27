@@ -119,6 +119,31 @@ for guard in (
     if guard not in javascript:
         failures.append(f"guard={guard}")
 
+observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
+for guard in (
+    'const CORE_VERSION = "0.6.2"',
+    'const MAX_OPERATIONS = 200',
+    'window.fetch = async function observedFetch',
+    'sanitizeStatus',
+    'sanitizeJobs',
+    'SENSITIVE_KEY',
+    'beforeunload',
+    'suppressBeforeUnload',
+    'window.location.reload()',
+):
+    if guard not in observability:
+        failures.append(f"observability_guard={guard}")
+for guard in (
+    'root-module-webui.action-output.v1',
+    'sessionStorage',
+    'Latest action result',
+    'Run check',
+    'url?.pathname === "/api/v1/action"',
+    'payload?.ok === false ? "reported warning" : "completed"',
+):
+    if guard not in observability:
+        failures.append(f"action_output_guard={guard}")
+
 css = (ROOT / "module/webroot/app.css").read_text(encoding="utf-8")
 for guard in (
     "scrollbar-width: none",
@@ -143,21 +168,6 @@ for guard in (
 ):
     if guard not in race_guard:
         failures.append(f"race_guard={guard}")
-
-observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
-for guard in (
-    'const CORE_VERSION = "0.6.1"',
-    'const MAX_OPERATIONS = 200',
-    'window.fetch = async function observedFetch',
-    'sanitizeStatus',
-    'sanitizeJobs',
-    'SENSITIVE_KEY',
-    'beforeunload',
-    'suppressBeforeUnload',
-    'window.location.reload()',
-):
-    if guard not in observability:
-        failures.append(f"observability_guard={guard}")
 
 v03 = (ROOT / "module/webroot/v03.js").read_text(encoding="utf-8")
 for endpoint in (
