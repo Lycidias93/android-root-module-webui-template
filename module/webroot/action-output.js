@@ -144,9 +144,12 @@
     }
 
     const message = payload?.message || payload?.error || text || `${response.status} ${response.statusText}`;
+    const status = response.ok
+      ? payload?.ok === false ? "reported warning" : "completed"
+      : `failed · HTTP ${response.status}`;
     appendEntry({
       name: requestActionName(options),
-      status: response.ok ? "completed" : `failed · HTTP ${response.status}`,
+      status,
       message,
     });
     return response;
