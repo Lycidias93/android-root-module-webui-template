@@ -27,6 +27,13 @@ required_js = [
     'suppressBeforeUnload',
     'window.location.reload()',
     'Request bodies, shell commands and job output are not recorded here.',
+    'root-module-webui.action-output.v1',
+    'const MAX_ENTRIES = 8',
+    'const MAX_MESSAGE_CHARS = 32768',
+    'sessionStorage',
+    'Latest action result',
+    'Run check',
+    'payload?.ok === false ? "reported warning" : "completed"',
 ]
 for needle in required_js:
     assert needle in js, f"missing observability contract marker: {needle}"
@@ -41,16 +48,17 @@ for forbidden in [
     "magisk.exec",
     "Android.exec",
     "localStorage",
-    "sessionStorage",
 ]:
     assert forbidden not in js, f"forbidden observability pattern: {forbidden}"
 
 assert 'init?.body' in js, "collection mode may inspect only the already supplied request body"
 assert 'body.slice(0, 2048)' in js, "request-body inspection must stay bounded"
+assert 'options?.body === "string" ? options.body.slice(0, 2048)' in js, "action-name inspection must stay bounded"
 assert 'JSON.parse(body)' not in js, "observability must not parse or retain arbitrary request payloads"
 assert 'snapshots.set' in js and 'operations.push' in js
-assert 'embedded-host-bootstrap.js' in index and 'observability.css' in index and 'observability.js' in index and 'action-output.js' in index
-assert index.index('embedded-host-bootstrap.js') < index.index('race-guard.js') < index.index('observability.js') < index.index('app.js') < index.index('action-output.js') < index.index('/v03.js') < index.index('/v04.js')
+assert 'embedded-host-bootstrap.js' in index and 'observability.css' in index and 'observability.js' in index
+assert 'action-output.js' not in index
+assert index.index('embedded-host-bootstrap.js') < index.index('race-guard.js') < index.index('observability.js') < index.index('app.js') < index.index('/v03.js') < index.index('/v04.js')
 assert '.core-dirty-bar' in css and '.core-operation-entry' in css
 assert '.shell {' in css and 'padding-bottom: calc(104px + env(safe-area-inset-bottom));' in css
 assert 'padding-bottom: calc(190px + env(safe-area-inset-bottom));' in css
@@ -59,7 +67,7 @@ if manifest:
     assert "module/webroot/embedded-host-bootstrap.js" in manifest
     assert "module/webroot/observability.js" in manifest
     assert "module/webroot/observability.css" in manifest
-    assert "module/webroot/action-output.js" in manifest
+    assert "module/webroot/action-output.js" not in manifest
     assert "scripts/webui-observability-static.test.py" in manifest
 
 print("RESULT: WEBUI_CORE_V062_OBSERVABILITY_STATIC_PASS")
