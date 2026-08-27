@@ -29,300 +29,367 @@
     if (typeof value === "string") return safeText(value, MAX_SNAPSHOT_STRING);
     if (Array.isArray(value)) return value.slice(0, MAX_SNAPSHOT_ITEMS).map(item => sanitize(item, depth + 1));
     if (typeof value !== "object") return safeText(value, MAX_SNAPSHOT_STRING);
+
     const output = {};
-    Object.keys(value).slice(0, MAX_SNAPSHOT_KEYS).forEach(key => {
-      output[key] = SENSITIVE_KEY.test(key) ? "[redacted]" : sanitize(value[key], depth + 1);
+    Object.entries(value).slice(0, MAX_SNAPSHOT_KEYS).forEach(([key, item]) => {
+      output[key] = SENSITIVE_KEY.test(key) ? "[redacted]" : sanitize(item, depth + 1);
     });
     return output;
   }
 
   function sanitizeStatus(value) {
-    if (!value || typeof value !== "object") return null;
+    if (!value || typeof value !== "object") return {};
     return sanitize({
       module: value.module,
       summary: value.summary,
       runtime: value.runtime,
-      safety: value.safety,
       action_state: value.action_state,
+      safety: value.safety,
     });
   }
 
   function sanitizeJobs(value) {
-    const jobs = Array.isArray(value?.data) ? value.data : Array.isArray(value) ? value : [];
-    return jobs.slice(0, 50).map(job => sanitize({
+    const source = Array.isArray(value?.data) ? value.data : Array.isArray(value) ? value : [];
+    return source.slice(0, MAX_SNAPSHOT_ITEMS).map(job => sanitize({
       id: job?.id,
       name: job?.name,
       status: job?.status,
-      created_at: job?.created_at,
-      started_at: job?.started_at,
-      finished_at: job?.finished_at,
-      exit_code: job?.exit_code,
-      error: job?.error,
       stdout_bytes: job?.stdout_bytes,
       stderr_bytes: job?.stderr_bytes,
-      truncated: job?.truncated,
       duration_seconds: job?.duration_seconds,
+      truncated: job?.truncated,
     }));
   }
 
-  function canonicalPath(input) {
+  function endpoint(input) {
     try {
-      const raw = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-      const url = new URL(raw, window.location.href);
-      return url.origin === window.location.origin ? url.pathname : "external";
+      const raw = typeof input === "string" ? input : input?.url;
+      return new URL(raw, window.location.href);
     } catch {
-      return "unknown";
+      return null;
     }
   }
 
-  function methodFor(input, options) {
-    if (options?.method) return String(options.method).toUpperCase();
-    if (typeof Request !== "undefined" && input instanceof Request) return input.method.toUpperCase();
-    return "GET";
+  function requestMethod(input, init) {
+    return String(init?.method || input?.method || "GET").toUpperCase();
   }
 
-  function snapshotFor(path, payload) {
-    if (path === "/api/v1/status") snapshots.set("status", sanitizeStatus(payload));
-    if (path === "/api/v1/jobs") snapshots.set("jobs", sanitizeJobs(payload));
-    if (path === "/api/v1/capabilities") snapshots.set("capabilities", sanitize(payload));
+  function collectionMode(body) {
+    if (typeof body !== "string") return "";
+    const match = /"mode"\s*:\s*"(preview|apply)"/.exec(body.slice(0, 2048));
+    return match?.[1] || "";
   }
 
-  function appendOperation(operation) {
-    operations.push(operation);
-    if (operations.length > MAX_OPERATIONS) operations.splice(0, operations.length - MAX_OPERATIONS);
-    renderTimeline();
+  function operationName(path, method, body) {
+    if (!path.startsWith(API_PREFIX)) return "";
+    if (path === "/api/v1/capabilities" && method === "GET") return "capabilities.read";
+    if (path === "/api/v1/status" && method === "GET") return "status.refresh";
+    if (path === "/api/v1/config" && method === "GET") return "config.read";
+    if (path === "/api/v1/config" && method === "POST") return "config.apply";
+    if (path === "/api/v1/action" && method === "POST") return "action.run";
+    if (path === "/api/v1/jobs" && method === "GET") return "jobs.list";
+    if (path === "/api/v1/jobs" && method === "POST") return "job.start";
+    if (/^\/api\/v1\/jobs\/[^/]+\/output$/.test(path) && method === "GET") return "job.output";
+    if (/^\/api\/v1\/jobs\/[^/]+$/.test(path) && method === "GET") return "job.status";
+    if (path === "/api/v1/inventory" && method === "GET") return "inventory.read";
+    if (path === "/api/v1/log" && method === "GET") return "log.read";
+    if (path === "/api/v1/v03/capabilities" && method === "GET") return "v03.capabilities.read";
+    if (path === "/api/v1/v03/collection" && method === "GET") return "collection.read";
+    if (path === "/api/v1/v03/collection" && method === "POST") {
+      const mode = collectionMode(body);
+      return mode ? `collection.${mode}` : "collection.change";
+    }
+    if (path === "/api/v1/v03/import" && method === "POST") return "import.preview";
+    if (path === "/api/v1/v03/import/apply" && method === "POST") return "import.apply";
+    if (path === "/api/v1/v03/export" && method === "POST") return "export.generate";
+    if (path === "/api/v1/v04/capabilities" && method === "GET") return "v04.capabilities.read";
+    if (path === "/api/v1/v04/reference" && method === "GET") return "reference.read";
+    if (path === "/api/v1/v04/jobs" && method === "POST") return "workflow.start";
+    if (path === "/api/v1/v04/inventory-operation" && method === "POST") return "inventory.operation";
+    return `${method.toLowerCase()} ${path}`;
   }
 
-  window.fetch = async function observedFetch(input, options = {}) {
-    const path = canonicalPath(input);
-    const method = methodFor(input, options);
-    const started = performance.now();
-    const operation = {
+  function recordOperation({ name, path, method, status, durationMs, error }) {
+    if (!name) return;
+    operations.push({
       at: new Date().toISOString(),
+      operation: safeText(name),
       method,
-      path,
-      state: "running",
-      status: null,
-      duration_ms: 0,
-    };
-    appendOperation(operation);
+      path: safeText(path),
+      status: safeText(status),
+      duration_ms: Math.max(0, Math.round(durationMs)),
+      error: error ? safeText(error, 240) : "",
+    });
+    if (operations.length > MAX_OPERATIONS) operations.splice(0, operations.length - MAX_OPERATIONS);
+    renderDiagnostics();
+  }
+
+  function snapshotKey(path, method) {
+    if (method !== "GET") return "";
+    if (path === "/api/v1/capabilities") return "base_capabilities";
+    if (path === "/api/v1/status") return "status";
+    if (path === "/api/v1/jobs") return "jobs";
+    if (path === "/api/v1/v03/capabilities") return "v03_capabilities";
+    if (path === "/api/v1/v04/capabilities") return "v04_capabilities";
+    return "";
+  }
+
+  async function captureSnapshot(response, path, method) {
+    const key = snapshotKey(path, method);
+    if (!key || !response.ok) return;
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) return;
     try {
-      const response = await nativeFetch(input, options);
-      operation.status = response.status;
-      operation.state = response.ok ? "success" : "failed";
-      operation.duration_ms = Math.round(performance.now() - started);
-      if (response.ok && method === "GET" && path.startsWith(API_PREFIX)) {
-        try {
-          const clone = response.clone();
-          if ((clone.headers.get("content-type") || "").includes("application/json")) {
-            snapshotFor(path, await clone.json());
-          }
-        } catch {
-          // Observability is best effort and must not affect the request.
-        }
-      }
-      renderTimeline();
+      const value = await response.json();
+      const safe = key === "status" ? sanitizeStatus(value) : key === "jobs" ? sanitizeJobs(value) : sanitize(value);
+      snapshots.set(key, safe);
       renderDiagnostics();
+    } catch {
+      // Diagnostics must never affect the productive request path.
+    }
+  }
+
+  function clearDirty(scope) {
+    if (!scope || !dirtyScopes.has(scope)) return;
+    dirtyScopes.delete(scope);
+    renderDirty();
+  }
+
+  function markDirty(scope, label, panel) {
+    if (!scope) return;
+    dirtyScopes.set(scope, { scope, label, panel });
+    renderDirty();
+  }
+
+  function handleSuccessfulRequest(path, method) {
+    if (path === "/api/v1/config" && (method === "GET" || method === "POST")) clearDirty("settings");
+    if (path === "/api/v1/v03/collection" && method === "GET") clearDirty("profiles");
+    if (path === "/api/v1/v03/import/apply" && method === "POST") clearDirty("import");
+  }
+
+  window.fetch = async function observedFetch(input, init = {}) {
+    const url = endpoint(input);
+    const method = requestMethod(input, init);
+    const path = url?.pathname || "";
+    const name = operationName(path, method, init?.body);
+    const started = performance.now();
+    try {
+      const response = await nativeFetch(input, init);
+      const durationMs = performance.now() - started;
+      recordOperation({
+        name,
+        path,
+        method,
+        status: response.ok ? `success:${response.status}` : `failed:${response.status}`,
+        durationMs,
+      });
+      if (response.ok) handleSuccessfulRequest(path, method);
+      void captureSnapshot(response.clone(), path, method);
       return response;
     } catch (error) {
-      operation.state = "network-error";
-      operation.duration_ms = Math.round(performance.now() - started);
-      operation.error = safeText(error instanceof Error ? error.message : error);
-      renderTimeline();
+      recordOperation({
+        name,
+        path,
+        method,
+        status: "network-error",
+        durationMs: performance.now() - started,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   };
 
-  function dirtyCount() {
-    return [...dirtyScopes.values()].filter(Boolean).length;
-  }
-
-  function syncDirtyUI() {
-    if (!ui) return;
-    const count = dirtyCount();
-    ui.dirty.hidden = count === 0;
-    ui.dirty.textContent = count ? `${count} unsaved area${count === 1 ? "" : "s"}` : "";
-  }
-
-  function setDirty(scope, dirty) {
-    dirtyScopes.set(scope, Boolean(dirty));
-    syncDirtyUI();
-  }
-
-  function wireDirtyScope(root, scope, savedSignals = []) {
-    if (!root) return;
-    const mark = event => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) {
-        setDirty(scope, true);
-      }
-    };
-    root.addEventListener("input", mark, true);
-    root.addEventListener("change", mark, true);
-    savedSignals.forEach(signal => document.addEventListener(signal, () => setDirty(scope, false)));
-  }
-
-  function renderTimeline() {
-    if (!ui?.timeline) return;
-    const rows = operations.slice(-30).reverse().map(operation => {
-      const row = document.createElement("tr");
-      [operation.at, operation.method, operation.path, operation.state, operation.status ?? "—", `${operation.duration_ms} ms`].forEach(value => {
-        const cell = document.createElement("td");
-        cell.textContent = String(value);
-        row.append(cell);
-      });
-      return row;
+  function element(tag, options = {}, children = []) {
+    const node = document.createElement(tag);
+    Object.entries(options).forEach(([key, value]) => {
+      if (key === "className") node.className = value;
+      else if (key === "text") node.textContent = value;
+      else if (key === "attributes") Object.entries(value).forEach(([name, item]) => node.setAttribute(name, item));
+      else node[key] = value;
     });
-    ui.timeline.replaceChildren(...rows);
+    children.forEach(child => node.append(child));
+    return node;
+  }
+
+  function activatePanel(panelID) {
+    const button = document.querySelector(`.tab[data-panel="${CSS.escape(panelID)}"]`);
+    if (!button || button.hidden) return false;
+    document.querySelectorAll(".tab").forEach(item => item.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    document.getElementById(panelID)?.classList.add("active");
+    button.scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" });
+    return true;
+  }
+
+  function reviewFirstDirty() {
+    const first = dirtyScopes.values().next().value;
+    if (first?.panel && activatePanel(first.panel)) return;
+    activatePanel("diagnosticsPanel");
   }
 
   function diagnosticsPayload() {
     return {
-      schema: "root-module-webui.browser-diagnostics.v1",
       core_version: CORE_VERSION,
-      generated_at: new Date().toISOString(),
-      location: { origin: window.location.origin, path: window.location.pathname },
-      dirty_scopes: [...dirtyScopes.entries()].filter(([, value]) => value).map(([key]) => key),
-      operations: operations.slice(-50).map(item => sanitize(item)),
-      snapshots: Object.fromEntries([...snapshots.entries()].map(([key, value]) => [key, sanitize(value)])),
+      dirty_areas: [...dirtyScopes.values()].map(item => ({ scope: item.scope, label: item.label })),
+      operations: operations.slice(),
+      state: Object.fromEntries(snapshots.entries()),
     };
   }
 
-  function renderDiagnostics() {
-    if (!ui?.diagnostics) return;
-    ui.diagnostics.textContent = JSON.stringify(diagnosticsPayload(), null, 2);
+  async function copyDiagnostics() {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diagnosticsPayload(), null, 2));
+      ui.copyButton.textContent = "Copied";
+      window.setTimeout(() => { if (ui) ui.copyButton.textContent = "Copy diagnostics"; }, 1400);
+    } catch {
+      ui.copyButton.textContent = "Copy denied";
+      window.setTimeout(() => { if (ui) ui.copyButton.textContent = "Copy diagnostics"; }, 1400);
+    }
   }
 
-  function buildUI() {
-    const shell = document.querySelector("main.shell");
-    const nav = document.querySelector("nav.tabs");
-    if (!shell || !nav || document.querySelector("#observabilityPanel")) return;
-
-    const dirty = document.createElement("button");
-    dirty.id = "globalDirtyButton";
-    dirty.type = "button";
-    dirty.className = "badge caution global-dirty";
-    dirty.hidden = true;
-    dirty.addEventListener("click", () => {
-      const first = [...dirtyScopes.entries()].find(([, value]) => value)?.[0];
-      const tab = first ? document.querySelector(`.tab[data-panel="${CSS.escape(first)}"]`) : null;
-      tab?.click();
-    });
-    document.querySelector("header.hero")?.append(dirty);
-
-    const tab = document.createElement("button");
-    tab.className = "tab";
-    tab.dataset.panel = "observabilityPanel";
-    tab.textContent = "Diagnostics";
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", "false");
-    tab.tabIndex = -1;
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(item => {
-        item.classList.remove("active");
-        item.setAttribute("aria-selected", "false");
-        item.tabIndex = -1;
-      });
-      document.querySelectorAll(".tab-panel").forEach(item => item.classList.remove("active"));
-      tab.classList.add("active");
-      tab.setAttribute("aria-selected", "true");
-      tab.tabIndex = 0;
-      document.querySelector("#observabilityPanel")?.classList.add("active");
-      renderTimeline();
-      renderDiagnostics();
-    });
-    nav.append(tab);
-
-    const panel = document.createElement("section");
-    panel.id = "observabilityPanel";
-    panel.className = "panel tab-panel";
-    panel.setAttribute("role", "tabpanel");
-
-    const heading = document.createElement("div");
-    heading.className = "panel-heading";
-    const headingText = document.createElement("div");
-    const title = document.createElement("h2");
-    title.textContent = "Diagnostics";
-    const subtitle = document.createElement("p");
-    subtitle.textContent = "Bounded browser-session operation metadata and safe API snapshots.";
-    headingText.append(title, subtitle);
-    heading.append(headingText);
-
-    const timelineWrap = document.createElement("div");
-    timelineWrap.className = "table-wrap";
-    const table = document.createElement("table");
-    table.className = "inventory-table";
-    const head = document.createElement("thead");
-    const headRow = document.createElement("tr");
-    ["Time", "Method", "Path", "Result", "HTTP", "Duration"].forEach(label => {
-      const th = document.createElement("th");
-      th.textContent = label;
-      headRow.append(th);
-    });
-    head.append(headRow);
-    const timeline = document.createElement("tbody");
-    table.append(head, timeline);
-    timelineWrap.append(table);
-
-    const actions = document.createElement("div");
-    actions.className = "actions-row compact";
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.textContent = "Copy diagnostics";
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(diagnosticsPayload(), null, 2));
-        copy.textContent = "Copied";
-        window.setTimeout(() => { copy.textContent = "Copy diagnostics"; }, 1200);
-      } catch {
-        copy.textContent = "Copy failed";
-        window.setTimeout(() => { copy.textContent = "Copy diagnostics"; }, 1600);
-      }
-    });
-    const clear = document.createElement("button");
-    clear.type = "button";
-    clear.textContent = "Clear timeline";
-    clear.addEventListener("click", () => {
-      operations.splice(0, operations.length);
-      renderTimeline();
-      renderDiagnostics();
-    });
-    const discard = document.createElement("button");
-    discard.type = "button";
-    discard.textContent = "Discard local drafts";
-    discard.addEventListener("click", () => {
-      suppressBeforeUnload = true;
-      window.location.reload();
-    });
-    actions.append(copy, clear, discard);
-
-    const diagnostics = document.createElement("pre");
-    diagnostics.className = "log-output diagnostics-output";
-    diagnostics.textContent = "Diagnostics not loaded.";
-    panel.append(heading, actions, timelineWrap, diagnostics);
-    shell.append(panel);
-
-    ui = { dirty, timeline, diagnostics };
-    syncDirtyUI();
-    renderTimeline();
+  function clearTimeline() {
+    operations.length = 0;
     renderDiagnostics();
   }
 
-  buildUI();
-  wireDirtyScope(document.querySelector("#configForm"), "settingsPanel", ["webui:settings-saved"]);
-  wireDirtyScope(document.querySelector("#profilesPanel"), "profilesPanel", ["webui:profiles-saved"]);
-  wireDirtyScope(document.querySelector("#backupPanel"), "backupPanel", ["webui:import-applied"]);
+  function renderDirty() {
+    if (!ui) return;
+    const entries = [...dirtyScopes.values()];
+    ui.dirtyBar.hidden = entries.length === 0;
+    ui.dirtyText.textContent = entries.length
+      ? `${entries.length} unsaved ${entries.length === 1 ? "area" : "areas"} · ${entries.map(item => item.label).join(", ")}`
+      : "No unsaved changes";
+    ui.dirtyCard.textContent = entries.length ? `${entries.length}` : "0";
+  }
 
-  document.addEventListener("webui:dirty", event => {
-    if (event.detail?.scope) setDirty(event.detail.scope, event.detail.dirty !== false);
-  });
-  document.addEventListener("webui:saved", event => {
-    if (event.detail?.scope) setDirty(event.detail.scope, false);
-  });
+  function operationCard(entry) {
+    const head = element("div", { className: "core-operation-head" }, [
+      element("strong", { text: entry.operation }),
+      element("span", { className: `badge ${entry.status.startsWith("success") ? "good" : "danger"}`, text: entry.status }),
+    ]);
+    const meta = element("div", { className: "core-operation-meta" }, [
+      element("span", { text: `${entry.method} ${entry.path}` }),
+      element("span", { text: `${entry.duration_ms} ms` }),
+      element("span", { text: entry.at }),
+    ]);
+    const card = element("article", { className: "core-operation-entry" }, [head, meta]);
+    if (entry.error) card.append(element("div", { className: "core-operation-error", text: entry.error }));
+    return card;
+  }
+
+  function renderDiagnostics() {
+    if (!ui) return;
+    ui.coreCard.textContent = CORE_VERSION;
+    ui.operationCountCard.textContent = String(operations.length);
+    ui.operationList.replaceChildren(...(operations.length
+      ? operations.slice().reverse().map(operationCard)
+      : [element("p", { className: "muted", text: "No typed API operations recorded in this browser session yet." })]));
+    ui.rawState.textContent = JSON.stringify(Object.fromEntries(snapshots.entries()), null, 2) || "{}";
+  }
+
+  function installUI() {
+    if (document.getElementById("diagnosticsPanel")) return;
+    const tabs = document.querySelector(".tabs");
+    const shell = document.querySelector(".shell");
+    const safetyPanel = document.getElementById("safetyPanel");
+    if (!tabs || !shell) return;
+
+    const diagnosticsTab = element("button", { className: "tab", type: "button", text: "Diagnostics" });
+    diagnosticsTab.dataset.panel = "diagnosticsPanel";
+    diagnosticsTab.addEventListener("click", () => activatePanel("diagnosticsPanel"));
+    const safetyTab = tabs.querySelector('[data-panel="safetyPanel"]');
+    tabs.insertBefore(diagnosticsTab, safetyTab || null);
+
+    const coreCard = element("div", { className: "value", text: CORE_VERSION });
+    const dirtyCard = element("div", { className: "value", text: "0" });
+    const operationCountCard = element("div", { className: "value", text: "0" });
+    const cards = element("div", { className: "cards" }, [
+      element("div", { className: "card" }, [element("div", { className: "label", text: "Core version" }), coreCard]),
+      element("div", { className: "card" }, [element("div", { className: "label", text: "Unsaved areas" }), dirtyCard]),
+      element("div", { className: "card" }, [element("div", { className: "label", text: "Session operations" }), operationCountCard]),
+    ]);
+
+    const copyButton = element("button", { type: "button", text: "Copy diagnostics" });
+    const clearButton = element("button", { type: "button", text: "Clear timeline" });
+    copyButton.addEventListener("click", copyDiagnostics);
+    clearButton.addEventListener("click", clearTimeline);
+
+    const operationList = element("div", { className: "stack core-operation-list" });
+    const rawState = element("pre", { className: "job-output core-raw-state", text: "{}" });
+    const diagnosticsPanel = element("section", { className: "panel tab-panel", attributes: { id: "diagnosticsPanel" } }, [
+      element("div", { className: "panel-heading" }, [
+        element("div", {}, [
+          element("h2", { text: "Diagnostics" }),
+          element("p", { text: "Session-local typed operation metadata and allowlisted, redacted API state. Request bodies, shell commands and job output are not recorded here." }),
+        ]),
+        element("div", { className: "actions-row compact" }, [copyButton, clearButton]),
+      ]),
+      cards,
+      element("h3", { className: "core-section-title", text: "Operation timeline" }),
+      operationList,
+      element("h3", { className: "core-section-title", text: "Safe raw API state" }),
+      rawState,
+    ]);
+    shell.insertBefore(diagnosticsPanel, safetyPanel || null);
+
+    const dirtyText = element("span", { text: "No unsaved changes" });
+    const reviewButton = element("button", { type: "button", text: "Review" });
+    const discardButton = element("button", { type: "button", className: "danger", text: "Discard local" });
+    reviewButton.addEventListener("click", reviewFirstDirty);
+    discardButton.addEventListener("click", () => {
+      suppressBeforeUnload = true;
+      window.location.reload();
+    });
+    const dirtyBar = element("aside", {
+      className: "core-dirty-bar",
+      attributes: { id: "coreDirtyBar", "aria-live": "polite" },
+    }, [
+      dirtyText,
+      element("div", { className: "actions-row compact" }, [reviewButton, discardButton]),
+    ]);
+    dirtyBar.hidden = true;
+    document.body.append(dirtyBar);
+
+    ui = { diagnosticsTab, diagnosticsPanel, coreCard, dirtyCard, operationCountCard, operationList, rawState, copyButton, clearButton, dirtyBar, dirtyText };
+    renderDirty();
+    renderDiagnostics();
+  }
+
+  document.addEventListener("input", event => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("#configForm")) markDirty("settings", "Settings", "settingsPanel");
+    if (target.matches("#v03CollectionsPanel [data-field-key]")) markDirty("profiles", "Profiles", "v03CollectionsPanel");
+  }, true);
+
+  document.addEventListener("change", event => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type === "file" && target.closest("#v03TransferPanel")) markDirty("import", "Import", "v03TransferPanel");
+  }, true);
+
+  document.addEventListener("click", event => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest("#v03CollectionsPanel button");
+    const label = button?.textContent?.trim();
+    if (label === "Add record" || label === "Remove") markDirty("profiles", "Profiles", "v03CollectionsPanel");
+  }, true);
 
   window.addEventListener("beforeunload", event => {
-    if (!suppressBeforeUnload && dirtyCount()) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
+    if (suppressBeforeUnload || !dirtyScopes.size) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
+
+  window.WebUICoreObservability = Object.freeze({
+    version: CORE_VERSION,
+    markDirty,
+    clearDirty,
+    diagnostics: () => sanitize(diagnosticsPayload()),
+  });
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installUI, { once: true });
+  else installUI();
 })();
