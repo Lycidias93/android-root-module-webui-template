@@ -393,3 +393,145 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installUI, { once: true });
   else installUI();
 })();
+
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "root-module-webui.action-output.v1";
+  const MAX_ENTRIES = 8;
+  const MAX_MESSAGE_CHARS = 32768;
+  const stateSummary = document.querySelector("#actionStateSummary");
+  const actionCards = document.querySelector("#actionCards");
+  if (!stateSummary || !actionCards) return;
+
+  const resultCard = document.createElement("section");
+  resultCard.className = "card action-result-card";
+  resultCard.setAttribute("aria-label", "Action result history");
+  const heading = document.createElement("div");
+  heading.className = "panel-heading";
+  const headingText = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = "Latest action result";
+  const subtitle = document.createElement("p");
+  subtitle.className = "muted";
+  subtitle.textContent = "Results stay visible in this browser tab until you clear them.";
+  headingText.append(title, subtitle);
+  const controls = document.createElement("div");
+  controls.className = "actions-row compact";
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.textContent = "Copy";
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.textContent = "Clear";
+  controls.append(copyButton, clearButton);
+  heading.append(headingText, controls);
+  const output = document.createElement("pre");
+  output.className = "log-output";
+  output.setAttribute("aria-live", "polite");
+  output.textContent = "No action run yet.";
+  resultCard.append(heading, output);
+  stateSummary.insertAdjacentElement("afterend", resultCard);
+
+  function readEntries() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(value) ? value.filter(item => item && typeof item === "object").slice(-MAX_ENTRIES) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  let entries = readEntries();
+
+  function renderEntries() {
+    output.textContent = entries.length
+      ? entries.map(entry => `[${entry.time}] ${entry.name || "action"} · ${entry.status}\n${entry.message || "(no output)"}`).join("\n\n---\n\n")
+      : "No action run yet.";
+    output.scrollTop = output.scrollHeight;
+  }
+
+  function persistEntries() {
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch { /* best effort */ }
+  }
+
+  function appendEntry(entry) {
+    const raw = String(entry.message || "(no output)");
+    entries.push({
+      time: new Date().toLocaleTimeString(),
+      name: entry.name || "action",
+      status: entry.status || "completed",
+      message: raw.length > MAX_MESSAGE_CHARS ? `${raw.slice(0, MAX_MESSAGE_CHARS)}\n… output truncated …` : raw,
+    });
+    entries = entries.slice(-MAX_ENTRIES);
+    persistEntries();
+    renderEntries();
+  }
+
+  function actionName(options) {
+    const body = typeof options?.body === "string" ? options.body.slice(0, 2048) : "";
+    const match = /"name"\s*:\s*"([A-Za-z0-9._-]+)"/.exec(body);
+    return match?.[1] || "action";
+  }
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (input, options = {}) => {
+    const raw = typeof input === "string" || input instanceof URL ? String(input) : input?.url;
+    let url = null;
+    try { url = new URL(raw, window.location.href); } catch { /* no-op */ }
+    const method = String(options?.method || input?.method || "GET").toUpperCase();
+    const isAction = url?.pathname === "/api/v1/action" && method === "POST";
+    let response;
+    try {
+      response = await nativeFetch(input, options);
+    } catch (error) {
+      if (isAction) appendEntry({ name: actionName(options), status: "network error", message: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+    if (!isAction) return response;
+
+    let payload = null;
+    let text = "";
+    try {
+      const clone = response.clone();
+      const contentType = clone.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) payload = await clone.json();
+      else text = await clone.text();
+    } catch { /* status still available */ }
+    const message = payload?.message || payload?.error || text || `${response.status} ${response.statusText}`;
+    const status = response.ok ? payload?.ok === false ? "reported warning" : "completed" : `failed · HTTP ${response.status}`;
+    appendEntry({ name: actionName(options), status, message });
+    return response;
+  };
+
+  function normalizeSafeActionButtons() {
+    actionCards.querySelectorAll("button.good").forEach(button => {
+      if (!["Apply change", "Reapply current setting"].includes(button.textContent.trim())) return;
+      button.textContent = "Run check";
+      const aria = button.getAttribute("aria-label") || "";
+      button.setAttribute("aria-label", aria.replace(/^(Apply change|Reapply current setting):/, "Run check:"));
+    });
+  }
+
+  new MutationObserver(normalizeSafeActionButtons).observe(actionCards, { childList: true, subtree: true, characterData: true });
+  normalizeSafeActionButtons();
+
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(output.textContent);
+      copyButton.textContent = "Copied";
+      window.setTimeout(() => { copyButton.textContent = "Copy"; }, 1200);
+    } catch {
+      copyButton.textContent = "Copy failed";
+      window.setTimeout(() => { copyButton.textContent = "Copy"; }, 1600);
+    }
+  });
+
+  clearButton.addEventListener("click", () => {
+    entries = [];
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* best effort */ }
+    renderEntries();
+  });
+
+  renderEntries();
+})();
