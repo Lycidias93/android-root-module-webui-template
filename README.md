@@ -29,6 +29,7 @@ and then redirects the WebView to the authenticated loopback session.
 | Adapter-defined Overview summary cards | Yes |
 | Adapter-reported active/blocked action state | Yes, optional status convention |
 | Preview-vs-apply action UX | Yes |
+| Bounded per-action result panel + read-only action labels | Yes |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
 | Session-cached inventory switching + explicit live refresh | Yes |
@@ -55,8 +56,11 @@ optional adapter-reported active/blocked actions, explicit Preview vs Apply
 wording, session-cached inventory switching with stale-response protection,
 and responsive mobile inventory/navigation rendering. Core v0.6.1 adds a
 bounded embedded-host bootstrap for KsuWebUI-style hosts while keeping every
-privileged module operation on the existing loopback HTTP API. Base-v1, v0.3
-and v0.4 consumers remain API-compatible when they omit optional state objects.
+privileged module operation on the existing loopback HTTP API. Long action
+output is kept in a bounded Actions result panel instead of expanding the global
+notice, and safe read-only actions use **Run check** rather than mutation wording.
+Base-v1, v0.3 and v0.4 consumers remain API-compatible when they omit optional
+state objects.
 
 ## Design goals
 
@@ -64,6 +68,8 @@ and v0.4 consumers remain API-compatible when they omit optional state objects.
 - Adapter-defined Overview summary cards with shared rendering and risk levels.
 - Optional action-state reporting makes the current effective choice visible without moving domain authority into JavaScript.
 - Dry-run is presented as **Preview only** and never visually confused with a productive Apply action.
+- Safe actions that do not offer Preview are labeled **Run check**, not **Apply change**.
+- Long action output stays in a bounded per-action result area; the global notice remains a short status surface.
 - Inventory view switching should be instant after first load; explicit Refresh performs the live adapter read.
 - Stale or out-of-order inventory responses must never replace the currently selected view.
 - One coherent core for read-only dashboards, settings modules, diagnostics,
@@ -361,6 +367,9 @@ while adding compatibility with KsuWebUI-style embedded module hosts:
   session and same-origin typed API apply;
 - temporary `/api/v1/*` requests against the asset host are held during the
   redirect instead of surfacing misleading static-file `404 Not Found` errors;
+- long action output stays in the bounded Actions result panel while the global
+  notice shows only a short status;
+- safe read-only actions use **Run check** instead of **Apply change**;
 - no settings, actions, jobs, inventory or arbitrary shell input are transported
   through the root-manager bridge.
 
