@@ -417,12 +417,8 @@
   function actionName(options) {
     const body = options?.body;
     if (typeof body !== "string") return "action";
-    try {
-      const value = JSON.parse(body);
-      return typeof value?.name === "string" && value.name ? value.name : "action";
-    } catch (_) {
-      return "action";
-    }
+    const match = /"name"\s*:\s*"([a-z][a-z0-9._-]{0,63})"/.exec(body.slice(0, 2048));
+    return match?.[1] || "action";
   }
 
   function compactActionName(value) {
