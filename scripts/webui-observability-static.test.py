@@ -27,6 +27,15 @@ required_js = [
     'suppressBeforeUnload',
     'window.location.reload()',
     'Request bodies, shell commands and job output are not recorded here.',
+    'globalThis.fetch = async function actionFeedbackFetch',
+    'actionFeedbackPanel',
+    'Latest action result',
+    'className = "action-card hidden"',
+    'output.className = "job-output"',
+    'button.textContent !== "Run check"',
+    'Action failed. Details are shown in Actions.',
+    'completed. Output is shown in Actions.',
+    'body.slice(0, 2048)',
 ]
 for needle in required_js:
     assert needle in js, f"missing observability contract marker: {needle}"
