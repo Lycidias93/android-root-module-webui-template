@@ -58,7 +58,7 @@ if parser.inline_scripts:
     failures.append("inline_script")
 if parser.inline_styles:
     failures.append("inline_style")
-if parser.scripts != ["embedded-host-bootstrap.js", "race-guard.js", "observability.js", "app.js", "/v03.js", "/v04.js"]:
+if parser.scripts != ["embedded-host-bootstrap.js", "race-guard.js", "observability.js", "mobile-input-viewport.js", "app.js", "/v03.js", "/v04.js"]:
     failures.append(f"scripts={parser.scripts}")
 for stylesheet in ("app.css", "race-guard.css", "observability.css"):
     if stylesheet not in parser.links:
@@ -88,6 +88,17 @@ for forbidden in (
 ):
     if forbidden in embedded:
         failures.append(f"embedded_forbidden={forbidden}")
+
+mobile_input = (ROOT / "module/webroot/mobile-input-viewport.js").read_text(encoding="utf-8")
+for guard in (
+    "window.visualViewport",
+    "focusin",
+    "scrollIntoView",
+    "viewport.addEventListener('resize'",
+    "viewport.addEventListener('scroll'",
+):
+    if guard not in mobile_input:
+        failures.append(f"mobile_input_guard={guard}")
 
 javascript = (ROOT / "module/webroot/app.js").read_text(encoding="utf-8")
 for endpoint in (
@@ -204,7 +215,7 @@ for guard in (
     if guard not in v04:
         failures.append(f"v04_guard={guard}")
 
-for label, source in (("app", javascript), ("race_guard", race_guard), ("observability", observability), ("v03", v03), ("v04", v04)):
+for label, source in (("app", javascript), ("race_guard", race_guard), ("observability", observability), ("v03", v03), ("v04", v04), ("mobile_input", mobile_input)):
     for forbidden in (
         "ksu.exec", "apatch.exec", "magisk.exec", "webui.exec", "Android.exec",
         "eval(", "new Function", "innerHTML =", "insertAdjacentHTML",

@@ -28,7 +28,7 @@ jobs:
         run: ./scripts/verify.sh
 
       - name: WebUI browser regressions
-        run: node --test scripts/webui-race-regression.test.mjs scripts/webui-embedded-host-bootstrap.test.mjs
+        run: node --test scripts/webui-race-regression.test.mjs scripts/webui-embedded-host-bootstrap.test.mjs scripts/webui-mobile-input-viewport.test.mjs
 
       - name: Build module
         run: ./scripts/build.sh
