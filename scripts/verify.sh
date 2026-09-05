@@ -21,6 +21,7 @@ required=(
   module/config/module.conf.default
   module/webroot/index.html
   module/webroot/embedded-host-bootstrap.js
+  module/webroot/mobile-input-viewport.js
   module/webroot/app.js
   module/webroot/app.css
   module/webroot/race-guard.js
@@ -166,7 +167,7 @@ if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' mo
   echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
-for file in module/webroot/embedded-host-bootstrap.js module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
+for file in module/webroot/embedded-host-bootstrap.js module/webroot/mobile-input-viewport.js module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
   node --check "$file"
 done
 
