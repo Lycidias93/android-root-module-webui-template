@@ -99,6 +99,18 @@ server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
 modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
 but must sync the complete manifest and pin the exact template commit.
 
+## v0.6.2 Action-browser consumers
+
+Core v0.6.2 changes only the reusable launcher lifetime contract. Consumers
+using the template `module/action.sh` should pin the exact v0.6.2 template
+commit and rebuild their candidate so the standalone loopback server is detached
+from the Action shell's stdin/SIGHUP lifetime before the external browser opens.
+
+The expected launcher evidence includes `server_detach=hup_safe`. Exact-device
+acceptance must exercise the module-manager Action button itself, not only an
+embedded KsuWebUI launch, and prove that the browser consumes the one-time token
+and reaches the clean authenticated root after `action.sh` has returned.
+
 ## v0.6.1 embedded-host consumers
 
 Core v0.6.1 adds `embedded-host-bootstrap.js` and the launcher `--print-url`

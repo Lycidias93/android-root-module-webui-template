@@ -104,6 +104,14 @@ grep -Fq -- '-token-file' module/action.sh
 grep -Fq -- '--print-url' module/action.sh
 grep -Fq 'WEBUI_BOOTSTRAP_URL=' module/action.sh
 grep -Fq 'bootstrap_transport=embedded_host_redirect' module/action.sh
+grep -Fq 'if command -v nohup >/dev/null 2>&1; then' module/action.sh
+grep -Fq 'nohup "$@" </dev/null >> "$LOG_FILE" 2>&1 &' module/action.sh
+grep -Fq "trap '' HUP" module/action.sh
+grep -Fq 'exec "$@" </dev/null >> "$LOG_FILE" 2>&1' module/action.sh
+[[ $(grep -Fc 'server_detach=hup_safe' module/action.sh) -eq 3 ]] || {
+  echo "FAIL action_server_detach_contract_missing"
+  exit 1
+}
 [[ $(grep -Fc "sed 's/-//g' < /proc/sys/kernel/random/uuid" module/action.sh) -eq 2 ]] || {
   echo "FAIL portable_uuid_filter_missing"
   exit 1
@@ -202,4 +210,5 @@ echo "RESULT: WEBUI_CORE_V04_TYPED_ASYNC_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V05_OBSERVABILITY_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V06_STATEFUL_MOBILE_UX_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V061_EMBEDDED_HOST_BOOTSTRAP_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V062_ACTION_BROWSER_LIFETIME_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"
