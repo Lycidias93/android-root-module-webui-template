@@ -201,40 +201,40 @@ func TestValidateActionJobBindings(t *testing.T) {
 			name: "jobs feature disabled",
 			app: &application{
 				capabilities: capabilityDocument{Features: map[string]bool{"jobs": false}},
-				actionIndex: map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
-				jobIndex: map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
 			},
 		},
 		{
 			name: "dry run missing",
 			app: &application{
 				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
-				actionIndex: map[string]actionDefinition{"a": {Name: "a", Risk: "safe", ApplyJob: "j"}},
-				jobIndex: map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
 			},
 		},
 		{
 			name: "confirmation unsupported",
 			app: &application{
 				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
-				actionIndex: map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j", RequiresConfirmation: true}},
-				jobIndex: map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j", RequiresConfirmation: true}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
 			},
 		},
 		{
 			name: "job missing",
 			app: &application{
 				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
-				actionIndex: map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
-				jobIndex: map[string]jobDefinition{},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{},
 			},
 		},
 		{
 			name: "risk mismatch",
 			app: &application{
 				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
-				actionIndex: map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
-				jobIndex: map[string]jobDefinition{"j": {Name: "j", Risk: "caution"}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "caution"}},
 			},
 		},
 	}
