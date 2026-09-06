@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.1`
+`CORE_VERSION=0.6.2`
 
 | Capability | Included |
 |---|---|
@@ -56,11 +56,13 @@ optional adapter-reported active/blocked actions, explicit Preview vs Apply
 wording, session-cached inventory switching with stale-response protection,
 and responsive mobile inventory/navigation rendering. Core v0.6.1 adds a
 bounded embedded-host bootstrap for KsuWebUI-style hosts while keeping every
-privileged module operation on the existing loopback HTTP API. Long action
-output is kept in a bounded Actions result panel instead of expanding the global
-notice, and safe read-only actions use **Run check** rather than mutation wording.
-Base-v1, v0.3 and v0.4 consumers remain API-compatible when they omit optional
-state objects.
+privileged module operation on the existing loopback HTTP API. Core v0.6.2
+hardens the normal Action-button browser launch by detaching the short-lived
+loopback server from the launcher shell's stdin and SIGHUP lifetime, so Android
+can finish opening the one-time bootstrap URL after `action.sh` returns. Long
+action output remains in a bounded Actions result panel, and safe read-only
+actions use **Run check** rather than mutation wording. Base-v1, v0.3 and v0.4
+consumers remain API-compatible when they omit optional state objects.
 
 ## Design goals
 
@@ -351,6 +353,18 @@ Core v0.6 keeps all existing typed server mutation contracts and adds reusable b
 - mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
 
 The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
+
+## Core v0.6.2 Action browser lifetime hardening
+
+Core v0.6.2 keeps the v0.6.1 API, authentication and embedded-host behavior
+unchanged. The normal module Action launcher now starts the loopback server with
+closed stdin and SIGHUP-safe detachment before it hands the bootstrap URL to the
+default browser. This removes the race where the Action shell could finish and
+the server disappear before the browser reached `127.0.0.1`.
+
+The launcher reports `server_detach=hup_safe` in verify, print-url and normal
+open modes. The server remains loopback-only, idle-bounded and explicitly
+user-triggered; no boot service or permanent listener is introduced.
 
 ## Core v0.6.1 embedded-host bootstrap
 
