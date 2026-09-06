@@ -193,7 +193,15 @@ Actions are declared with:
 - name and label;
 - risk: `safe`, `caution`, or `danger`;
 - optional dry-run support;
-- optional exact confirmation text.
+- optional exact confirmation text;
+- optional `apply_job` for a preview/apply pair whose productive half is long-running.
+
+For `apply_job`, the action remains the synchronous Preview contract and the
+named declared base job becomes the productive Apply contract. The core requires
+Jobs to be enabled, dry-run support, no base-action confirmation, a real declared
+job, and equal action/job risk. The browser starts the job only when Preview is
+off and follows its queued/running state. The action endpoint itself rejects
+non-preview execution for a bound action.
 
 The server rejects undeclared actions and mismatched confirmations before the
 adapter runs. The adapter repeats domain safety checks.
