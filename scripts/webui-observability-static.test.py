@@ -6,10 +6,10 @@ js = (ROOT / "module/webroot/observability.js").read_text()
 css = (ROOT / "module/webroot/observability.css").read_text()
 index = (ROOT / "module/webroot/index.html").read_text()
 manifest = (ROOT / "core/manifest.txt").read_text() if (ROOT / "core/manifest.txt").exists() else ""
-version = (ROOT / "CORE_VERSION").read_text().strip() if (ROOT / "CORE_VERSION").exists() else "0.6.2"
+version = (ROOT / "CORE_VERSION").read_text().strip() if (ROOT / "CORE_VERSION").exists() else "0.6.3"
 
 required_js = [
-    'const CORE_VERSION = "0.6.2"',
+    'const CORE_VERSION = "0.6.3"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'SENSITIVE_KEY',
@@ -63,7 +63,7 @@ assert index.index('embedded-host-bootstrap.js') < index.index('race-guard.js') 
 assert '.core-dirty-bar' in css and '.core-operation-entry' in css
 assert '.shell {' in css and 'padding-bottom: calc(104px + env(safe-area-inset-bottom));' in css
 assert 'padding-bottom: calc(190px + env(safe-area-inset-bottom));' in css
-assert version == "0.6.2", f"expected CORE_VERSION 0.6.2, got {version}"
+assert version == "0.6.3", f"expected CORE_VERSION 0.6.3, got {version}"
 if manifest:
     assert "module/webroot/embedded-host-bootstrap.js" in manifest
     assert "module/webroot/observability.js" in manifest

@@ -66,6 +66,12 @@ On a clean task branch:
 Review `webui.lock` and all core changes. Pin the exact template commit and
 `CORE_VERSION`; do not build a release candidate from floating `main`.
 
+For Core v0.6.3 or newer, adapters may declare an action `apply_job` when a
+quick dry-run preview must pair with a long-running productive background job.
+Add the target to base `jobs`, implement its `job-run` case, keep action/job risk
+equal, and verify both paths. Do not use this field for confirmation-gated base
+actions; use a stronger typed workflow contract instead.
+
 For Core v0.6.1 or newer, custom WebUI launchers must also preserve the
 `--print-url` contract if the module wants embedded KsuWebUI compatibility. The
 mode starts the same loopback server, prints exactly one validated bootstrap URL

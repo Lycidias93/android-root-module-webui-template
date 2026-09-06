@@ -71,6 +71,7 @@ type actionDefinition struct {
 	Description          string `json:"description,omitempty"`
 	Risk                 string `json:"risk"`
 	SupportsDryRun       bool   `json:"supports_dry_run,omitempty"`
+	ApplyJob             string `json:"apply_job,omitempty"`
 	RequiresConfirmation bool   `json:"requires_confirmation,omitempty"`
 	ConfirmationText     string `json:"confirmation_text,omitempty"`
 }
@@ -836,6 +837,10 @@ func (a *application) action(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, responseEnvelope{OK: false, Error: "confirmation text does not match"})
 		return
 	}
+	if definition.ApplyJob != "" && !request.DryRun {
+		writeJSON(w, http.StatusBadRequest, responseEnvelope{OK: false, Error: "action apply must be started as declared job"})
+		return
+	}
 	requestPath, err := a.writeRequestFile("action", request)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, responseEnvelope{OK: false, Error: "could not stage action request"})
@@ -1065,6 +1070,34 @@ func (a *application) loadCapabilities(ctx context.Context) error {
 			return fmt.Errorf("duplicate inventory: %s", inventory.Name)
 		}
 		a.inventoryIndex[inventory.Name] = inventory
+	}
+	if err := a.validateActionJobBindings(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *application) validateActionJobBindings() error {
+	for _, action := range a.actionIndex {
+		if action.ApplyJob == "" {
+			continue
+		}
+		if !a.capabilities.Features["jobs"] {
+			return fmt.Errorf("action %s apply_job requires jobs feature", action.Name)
+		}
+		if !action.SupportsDryRun {
+			return fmt.Errorf("action %s apply_job requires supports_dry_run", action.Name)
+		}
+		if action.RequiresConfirmation {
+			return fmt.Errorf("action %s apply_job cannot use base action confirmation", action.Name)
+		}
+		job, ok := a.jobIndex[action.ApplyJob]
+		if !ok {
+			return fmt.Errorf("action %s apply_job references undeclared job: %s", action.Name, action.ApplyJob)
+		}
+		if job.Risk != action.Risk {
+			return fmt.Errorf("action %s apply_job risk must match job %s", action.Name, action.ApplyJob)
+		}
 	}
 	return nil
 }

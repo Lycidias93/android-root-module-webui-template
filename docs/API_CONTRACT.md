@@ -162,6 +162,15 @@ confirmation text matches, but server enforcement remains authoritative. The
 adapter repeats domain validation and may repeat the confirmation check when it
 is part of the module operation contract.
 
+An action may optionally declare `"apply_job":"declared-job"`. This is valid
+only when Jobs are enabled, the action supports dry-run, the action does not use
+base-action confirmation, the named base job exists, and both declarations use
+the same risk. In that case Preview still uses `POST /api/v1/action`, while
+productive Apply is started with `POST /api/v1/jobs`. A direct non-preview
+request to the action endpoint is rejected. This keeps long-running productive
+work on the bounded background-job lifecycle instead of relying on a long-lived
+HTTP action response.
+
 ## Jobs
 
 ### `POST /api/v1/jobs`

@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.2`
+`CORE_VERSION=0.6.3`
 
 | Capability | Included |
 |---|---|
@@ -29,6 +29,7 @@ and then redirects the WebView to the authenticated loopback session.
 | Adapter-defined Overview summary cards | Yes |
 | Adapter-reported active/blocked action state | Yes, optional status convention |
 | Preview-vs-apply action UX | Yes |
+| Preview action → declared background apply job | Yes, optional `apply_job` |
 | Bounded per-action result panel + read-only action labels | Yes |
 | Bounded background jobs with status and output | Yes |
 | Typed inventory views | Yes |
@@ -59,8 +60,11 @@ bounded embedded-host bootstrap for KsuWebUI-style hosts while keeping every
 privileged module operation on the existing loopback HTTP API. Core v0.6.2
 hardens the normal Action-button browser launch by detaching the short-lived
 loopback server from the launcher shell's stdin and SIGHUP lifetime, so Android
-can finish opening the one-time bootstrap URL after `action.sh` returns. Long
-action output remains in a bounded Actions result panel, and safe read-only
+can finish opening the one-time bootstrap URL after `action.sh` returns. Core
+v0.6.3 adds an optional `apply_job` action binding so a quick synchronous
+Preview can use `/api/v1/action` while the productive Apply is started through
+the already bounded background-job API instead of holding an HTTP response open.
+Long action output remains in a bounded Actions result panel, and safe read-only
 actions use **Run check** rather than mutation wording. Base-v1, v0.3 and v0.4
 consumers remain API-compatible when they omit optional state objects.
 
@@ -353,6 +357,20 @@ Core v0.6 keeps all existing typed server mutation contracts and adds reusable b
 - mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
 
 The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
+
+## Core v0.6.3 action-to-job apply handoff
+
+Core v0.6.3 keeps existing action and job endpoints backward compatible and adds
+one optional base-capability field: `apply_job`. A declared action may use it
+only when the action supports dry-run, does not use base-action confirmation,
+the named background job is declared, Jobs are enabled, and action/job risks
+match.
+
+With that binding, Preview stays a synchronous `POST /api/v1/action`, while
+unchecking Preview starts the declared `POST /api/v1/jobs` operation. The action
+button follows the matching job's queued/running state and the normal Jobs view
+owns lifecycle and output. Direct non-preview calls to the action endpoint are
+rejected for bound actions, so a caller cannot bypass the bounded job path.
 
 ## Core v0.6.2 Action browser lifetime hardening
 

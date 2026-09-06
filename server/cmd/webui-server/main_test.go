@@ -179,6 +179,74 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
+func TestValidateActionJobBindings(t *testing.T) {
+	valid := &application{
+		capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
+		actionIndex: map[string]actionDefinition{
+			"sort-now": {Name: "sort-now", Risk: "caution", SupportsDryRun: true, ApplyJob: "sort-now"},
+		},
+		jobIndex: map[string]jobDefinition{
+			"sort-now": {Name: "sort-now", Risk: "caution"},
+		},
+	}
+	if err := valid.validateActionJobBindings(); err != nil {
+		t.Fatalf("valid action/job binding rejected: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		app  *application
+	}{
+		{
+			name: "jobs feature disabled",
+			app: &application{
+				capabilities: capabilityDocument{Features: map[string]bool{"jobs": false}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+			},
+		},
+		{
+			name: "dry run missing",
+			app: &application{
+				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+			},
+		},
+		{
+			name: "confirmation unsupported",
+			app: &application{
+				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j", RequiresConfirmation: true}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "safe"}},
+			},
+		},
+		{
+			name: "job missing",
+			app: &application{
+				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{},
+			},
+		},
+		{
+			name: "risk mismatch",
+			app: &application{
+				capabilities: capabilityDocument{Features: map[string]bool{"jobs": true}},
+				actionIndex:  map[string]actionDefinition{"a": {Name: "a", Risk: "safe", SupportsDryRun: true, ApplyJob: "j"}},
+				jobIndex:     map[string]jobDefinition{"j": {Name: "j", Risk: "caution"}},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.app.validateActionJobBindings(); err == nil {
+				t.Fatal("invalid action/job binding accepted")
+			}
+		})
+	}
+}
+
 func TestLimitedBuffer(t *testing.T) {
 	buffer := &limitedBuffer{limit: 4}
 	if _, err := buffer.Write([]byte("abcdef")); err != nil {

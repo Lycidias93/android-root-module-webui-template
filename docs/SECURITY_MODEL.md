@@ -76,6 +76,7 @@ malformed request, unsafe adapter extension and accidental secret packaging.
 - PID cleanup verifies process identity.
 - Idle shutdown pauses while jobs are active.
 - Job concurrency and duration are bounded.
+- Optional action `apply_job` bindings can only target a declared base job with the same risk; the core rejects direct non-preview action execution for those bindings.
 - Persistent module runtime is independent from WebUI availability.
 
 ## Adapter review checklist

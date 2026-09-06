@@ -126,6 +126,9 @@ for guard in (
     'aria-pressed',
     'function loadInventory(name, { force = false } = {})',
     'function syncRunState()',
+    'definition.apply_job',
+    'state.actionJobSyncers',
+    'started in Jobs.',
 ):
     if guard not in javascript:
         failures.append(f"guard={guard}")
@@ -157,7 +160,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.6.2"',
+    'const CORE_VERSION = "0.6.3"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
