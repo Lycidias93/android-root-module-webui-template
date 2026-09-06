@@ -99,6 +99,20 @@ server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
 modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
 but must sync the complete manifest and pin the exact template commit.
 
+## v0.6.3 action apply-job consumers
+
+Core v0.6.3 adds the optional base action field `apply_job`. Use it when the
+same user-facing operation has a quick read-only Preview but a productive Apply
+that can exceed synchronous HTTP action bounds. The target must be an already
+declared base job with the same risk; Jobs must be enabled, the action must
+support dry-run, and base-action confirmation is not allowed on the binding.
+
+Consumers adopting this contract must sync the complete core manifest, add the
+named `job-run` adapter case, keep the preview path read-only, and exercise both
+the synchronous Preview and background Apply on the exact installed candidate.
+The productive path must be observed through Jobs until terminal success/failure;
+a browser notice that the job started is not completion evidence.
+
 ## v0.6.2 Action-browser consumers
 
 Core v0.6.2 changes only the reusable launcher lifetime contract. Consumers
