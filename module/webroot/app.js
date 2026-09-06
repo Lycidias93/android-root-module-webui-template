@@ -9,6 +9,7 @@
     jobs: [],
     polling: null,
     jobsRefreshPromise: null,
+    actionJobSyncers: new Set(),
     inventoryCache: new Map(),
     inventoryCurrent: "",
     inventorySequence: 0,
@@ -337,10 +338,12 @@
     const actions = state.capabilities?.actions || [];
     const current = actionState();
     renderActionSummary(actions, current);
+    state.actionJobSyncers.clear();
 
     ui.actionCards.replaceChildren(...actions.map(definition => {
       const active = current.active.has(definition.name);
       const blockedReason = current.blocked[definition.name] ? String(current.blocked[definition.name]) : "";
+      const applyJob = typeof definition.apply_job === "string" ? definition.apply_job : "";
       const dryRun = element("input", {
         type: "checkbox",
         checked: Boolean(definition.supports_dry_run),
@@ -355,24 +358,43 @@
 
       function syncRunState() {
         const confirmationMissing = definition.requires_confirmation && confirmation.value !== definition.confirmation_text;
-        run.disabled = Boolean(blockedReason) || confirmationMissing;
+        const jobRunning = Boolean(applyJob) && state.jobs.some(job =>
+          job.name === applyJob && ["queued", "running"].includes(job.status)
+        );
+        run.disabled = Boolean(blockedReason) || confirmationMissing || jobRunning;
         const stateful = current.active.has(definition.name);
-        const verb = definition.supports_dry_run && dryRun.checked
-          ? stateful ? "Preview current setting" : "Preview change"
-          : stateful ? "Reapply current setting" : "Apply change";
+        const verb = jobRunning
+          ? "Running…"
+          : definition.supports_dry_run && dryRun.checked
+            ? stateful ? "Preview current setting" : "Preview change"
+            : stateful ? "Reapply current setting" : "Apply change";
         run.textContent = verb;
         run.setAttribute("aria-label", `${verb}: ${definition.label}`);
-        if (blockedReason) run.title = blockedReason;
+        if (jobRunning) run.title = `${definition.label} is running as a background job.`;
+        else if (blockedReason) run.title = blockedReason;
         else run.removeAttribute("title");
       }
 
       confirmation.addEventListener("input", syncRunState);
       dryRun.addEventListener("change", syncRunState);
+      if (applyJob) state.actionJobSyncers.add(syncRunState);
       syncRunState();
 
       run.addEventListener("click", async () => {
         run.disabled = true;
         try {
+          const previewOnly = definition.supports_dry_run && dryRun.checked;
+          if (!previewOnly && applyJob) {
+            await api("/api/v1/jobs", {
+              method: "POST",
+              body: JSON.stringify({ name: applyJob }),
+            });
+            state.inventoryCache.clear();
+            await refreshJobs();
+            startJobPolling();
+            showNotice(`${definition.label} started in Jobs.`);
+            return;
+          }
           const result = await api("/api/v1/action", {
             method: "POST",
             body: JSON.stringify({
@@ -381,7 +403,7 @@
               confirmation: definition.requires_confirmation ? confirmation.value : "",
             }),
           });
-          if (!(definition.supports_dry_run && dryRun.checked)) state.inventoryCache.clear();
+          if (!previewOnly) state.inventoryCache.clear();
           await refreshStatus();
           showNotice(result.message || `${definition.label} completed.`);
         } catch (error) {
@@ -501,6 +523,7 @@
       const response = await api("/api/v1/jobs");
       state.jobs = response.data || [];
       await renderJobs();
+      state.actionJobSyncers.forEach(sync => sync());
       if (!state.jobs.some(job => ["queued", "running"].includes(job.status))) stopJobPolling();
     })();
     try {
