@@ -138,6 +138,9 @@ grep -Fq 'root-module-webui.capabilities.v1' server/cmd/webui-server/main.go
 grep -Fq 'registerV03Handlers(mux, app)' server/cmd/webui-server/main.go
 grep -Fq 'registerV04Handlers(mux, app)' server/cmd/webui-server/main.go
 grep -Fq 'statusControlTimeout' server/cmd/webui-server/main.go
+grep -Fq 'ApplyJob             string `json:"apply_job,omitempty"`' server/cmd/webui-server/main.go
+grep -Fq 'validateActionJobBindings' server/cmd/webui-server/main.go
+grep -Fq 'action apply must be started as declared job' server/cmd/webui-server/main.go
 grep -Fq 'root-module-webui.extensions.v1' server/cmd/webui-server/v03.go
 grep -Fq 'matching unexpired preview required' server/cmd/webui-server/v03.go
 grep -Fq 'file outside private upload directory' server/cmd/webui-server/v03.go
@@ -211,4 +214,5 @@ echo "RESULT: WEBUI_CORE_V05_OBSERVABILITY_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V06_STATEFUL_MOBILE_UX_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V061_EMBEDDED_HOST_BOOTSTRAP_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V062_ACTION_BROWSER_LIFETIME_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V063_ACTION_APPLY_JOB_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"
