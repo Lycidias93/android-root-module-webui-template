@@ -108,6 +108,7 @@ if [ "$MODE" = "--verify" ]; then
   echo "token_in_argv=no"
   echo "runtime_dir=$RUNTIME_DIR"
   echo "embedded_host_bootstrap=available"
+  echo "server_detach=hup_safe"
   echo "RESULT: WEBUI_ACTION_VERIFY_DONE outcome=success command_exit_code=0 workflow_exit_code=0"
   exit 0
 fi
@@ -123,7 +124,7 @@ esac
 printf '%s\n' "$TOKEN" > "$TOKEN_FILE"
 chmod 0600 "$TOKEN_FILE"
 
-"$SERVER" \
+set -- "$SERVER" \
   -listen 127.0.0.1:0 \
   -webroot "$MODDIR/webroot" \
   -control "$CONTROL" \
@@ -136,8 +137,21 @@ chmod 0600 "$TOKEN_FILE"
   -idle-timeout "${WEBUI_IDLE_TIMEOUT:-15m}" \
   -session-ttl "${WEBUI_SESSION_TTL:-15m}" \
   -job-timeout "${WEBUI_JOB_TIMEOUT:-30m}" \
-  -max-jobs "${WEBUI_MAX_JOBS:-2}" \
-  >> "$LOG_FILE" 2>&1 &
+  -max-jobs "${WEBUI_MAX_JOBS:-2}"
+
+# The Action shell may disappear immediately after Android accepts the browser
+# intent. Keep the loopback server independent from that shell's stdio/HUP
+# lifetime so the browser can complete the one-time bootstrap after action.sh
+# returns. nohup is available in normal Android root-manager shell stacks; the
+# fallback preserves the same SIGHUP behavior without adding a hard dependency.
+if command -v nohup >/dev/null 2>&1; then
+  nohup "$@" </dev/null >> "$LOG_FILE" 2>&1 &
+else
+  (
+    trap '' HUP
+    exec "$@" </dev/null >> "$LOG_FILE" 2>&1
+  ) &
+fi
 SERVER_PID=$!
 printf '%s\n' "$SERVER_PID" > "$PID_FILE"
 chmod 0600 "$PID_FILE"
@@ -171,6 +185,7 @@ if [ "$MODE" = "--print-url" ]; then
   echo "browser_port=$PORT"
   echo "server_scope=loopback_only"
   echo "bootstrap_transport=embedded_host_redirect"
+  echo "server_detach=hup_safe"
   echo "RESULT: WEBUI_ACTION_URL_DONE outcome=success command_exit_code=0 workflow_exit_code=0"
   unset TOKEN URL
   exit 0
@@ -190,5 +205,6 @@ echo "WebUI opened in the default browser."
 echo "browser_port=$PORT"
 echo "browser_final_url_token_policy=one_time_bootstrap_then_clean_root"
 echo "server_scope=loopback_only"
+echo "server_detach=hup_safe"
 echo "RESULT: WEBUI_ACTION_OPEN_DONE outcome=success command_exit_code=0 workflow_exit_code=0"
 exit 0
