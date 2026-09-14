@@ -160,7 +160,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.6.3"',
+    'const CORE_VERSION = "0.6.4"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
@@ -227,11 +227,16 @@ for label, source in (("app", javascript), ("race_guard", race_guard), ("observa
             failures.append(f"{label}_forbidden={forbidden}")
 
 action = (ROOT / "module/action.sh").read_text(encoding="utf-8")
-for required in ("-token-file", "/data/local/tmp/", "/bootstrap?token=", "-self-test", "--print-url", "WEBUI_BOOTSTRAP_URL="):
+for required in (
+    "-token-file", "/data/local/tmp/", "/bootstrap?token=", "-self-test", "--print-url", "WEBUI_BOOTSTRAP_URL=",
+    "-session-ttl 1h", '${WEBUI_SESSION_TTL:-1h}', '${WEBUI_JOB_TIMEOUT:-30m}',
+):
     if required not in action:
         failures.append(f"action_contract={required}")
 if ' -token "$TOKEN"' in action or " -token " in action:
     failures.append("token_in_argv")
+if '${WEBUI_SESSION_TTL:-15m}' in action:
+    failures.append("session_ttl_shorter_than_default_job")
 
 control = (ROOT / "module/bin/module-control").read_text(encoding="utf-8")
 for operation in ("capabilities)", "config-apply)", "action-file)", "job-run)", "inventory)"):
