@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.3`
+`CORE_VERSION=0.6.4`
 
 | Capability | Included |
 |---|---|
@@ -64,6 +64,9 @@ can finish opening the one-time bootstrap URL after `action.sh` returns. Core
 v0.6.3 adds an optional `apply_job` action binding so a quick synchronous
 Preview can use `/api/v1/action` while the productive Apply is started through
 the already bounded background-job API instead of holding an HTTP response open.
+Core v0.6.4 keeps the 15-minute idle shutdown but raises the launcher session
+lifetime to one hour so the default 30-minute background-job window cannot
+invalidate the browser session while the job is still legitimately running.
 Long action output remains in a bounded Actions result panel, and safe read-only
 actions use **Run check** rather than mutation wording. Base-v1, v0.3 and v0.4
 consumers remain API-compatible when they omit optional state objects.
@@ -119,7 +122,7 @@ module/action.sh                               embedded-host-bootstrap.js
                                +-- 0600 one-time token file
                                +-- listens on 127.0.0.1:0
                                +-- consumes /bootstrap?token=<one-time-token>
-                               +-- sets short-lived HttpOnly SameSite=Lax cookie
+                               +-- sets bounded HttpOnly SameSite=Lax cookie
                                +-- redirects to clean /
                                +-- serves offline UI and typed /api/v1 endpoints
                                +-- optionally exposes v0.3 typed collection/import/export endpoints
@@ -244,7 +247,9 @@ The server owns job identity and lifecycle:
 - bounded stdout and stderr;
 - explicit `queued`, `running`, `success`, or `failed` state;
 - no false percentage progress;
-- the idle shutdown waits for active jobs.
+- the idle shutdown waits for active jobs;
+- the default launcher session lifetime is one hour, exceeding the default
+  30-minute job timeout so an ordinary long job cannot outlive its browser session.
 
 Expensive diagnostics, scans or backup generation can therefore run without
 holding an HTTP request open. Import preview/apply itself remains a separate
@@ -357,6 +362,15 @@ Core v0.6 keeps all existing typed server mutation contracts and adds reusable b
 - mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
 
 The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
+
+## Core v0.6.4 session/job lifetime alignment
+
+Core v0.6.4 keeps the HTTP API and authentication mechanism unchanged. The
+launcher now uses a one-hour default session lifetime while preserving the
+15-minute idle shutdown and 30-minute default background-job timeout. This
+prevents the default authenticated browser session from expiring halfway through
+a valid long-running job while keeping the loopback server explicitly
+user-triggered and idle-bounded. Consumer-specific overrides remain explicit.
 
 ## Core v0.6.3 action-to-job apply handoff
 
