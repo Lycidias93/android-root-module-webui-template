@@ -66,6 +66,12 @@ On a clean task branch:
 Review `webui.lock` and all core changes. Pin the exact template commit and
 `CORE_VERSION`; do not build a release candidate from floating `main`.
 
+For Core v0.6.4 or newer, keep the shared launcher defaults unless the consumer
+has an explicit reason to override them: 15-minute idle shutdown, one-hour
+browser session lifetime, and 30-minute background-job timeout. If a consumer
+overrides session or job timeout, verify that its intended long-running jobs do
+not outlive the authenticated observation window.
+
 For Core v0.6.3 or newer, adapters may declare an action `apply_job` when a
 quick dry-run preview must pair with a long-running productive background job.
 Add the target to base `jobs`, implement its `job-run` case, keep action/job risk
@@ -147,6 +153,7 @@ Minimum:
 - config validation and atomic update;
 - action confirmation;
 - job lifecycle and output limits;
+- launcher session lifetime exceeds the default background-job timeout;
 - typed collection field/identity/count validation when enabled;
 - collection preview/apply mismatch rejection when enabled;
 - import size/private-path/SHA/preview binding when enabled;
@@ -172,6 +179,7 @@ Verify:
 - server binds only to loopback;
 - configuration persists across module update;
 - jobs finish or time out correctly;
+- a default long-running job remains observable past the old 15-minute session boundary;
 - enabled typed editor round-trips the effective configuration;
 - enabled imports show accurate preview and create rollback before apply;
 - enabled exports contain only the declared safe data;

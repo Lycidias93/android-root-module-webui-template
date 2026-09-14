@@ -25,6 +25,13 @@ malformed request, unsafe adapter extension and accidental secret packaging.
 - Session cookie is random, HttpOnly and SameSite=Lax.
 - Final browser URL is clean.
 - Responses are non-cacheable and use `Referrer-Policy: no-referrer`.
+- The shared launcher defaults to a one-hour session, 30-minute background-job
+  timeout and 15-minute idle shutdown. This keeps the default authenticated
+  observation window longer than a valid default job without making the listener
+  permanent; once no job is active, normal idle shutdown still applies.
+- Consumer timeout overrides are explicit policy and must be verified together;
+  do not shorten the authenticated observation window below the intended job
+  lifetime without a consumer-specific reauthentication design and device proof.
 
 ### Browser
 

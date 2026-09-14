@@ -99,6 +99,21 @@ server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
 modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
 but must sync the complete manifest and pin the exact template commit.
 
+## v0.6.4 session/job lifetime consumers
+
+Core v0.6.4 changes the reusable launcher defaults without changing the HTTP
+API. The normal and embedded-host launch paths keep a 15-minute idle shutdown,
+use a one-hour default authenticated session, and retain the 30-minute default
+background-job timeout. This prevents the default browser session from expiring
+before a valid default job can complete while preserving bounded, user-triggered
+loopback lifetime.
+
+Consumers must sync the complete core, pin the exact v0.6.4 template commit,
+rebuild the candidate, and verify a productive background job remains observable
+past the old 15-minute boundary. Consumer overrides of `WEBUI_SESSION_TTL` or
+`WEBUI_JOB_TIMEOUT` remain explicit consumer policy and must be verified so the
+chosen session lifetime does not undercut the intended job-observation window.
+
 ## v0.6.3 action apply-job consumers
 
 Core v0.6.3 adds the optional base action field `apply_job`. Use it when the
