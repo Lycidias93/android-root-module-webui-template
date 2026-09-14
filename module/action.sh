@@ -98,7 +98,7 @@ if [ "$MODE" = "--verify" ]; then
     -state-dir "$STATE_DIR" \
     -runtime-dir "$RUNTIME_DIR" \
     -idle-timeout 15m \
-    -session-ttl 15m \
+    -session-ttl 1h \
     -job-timeout 30m \
     -max-jobs 2 || fail "server_self_test_failed"
   echo "action_mode=standalone_browser"
@@ -135,7 +135,7 @@ set -- "$SERVER" \
   -state-file "$READY_FILE" \
   -pid-file "$PID_FILE" \
   -idle-timeout "${WEBUI_IDLE_TIMEOUT:-15m}" \
-  -session-ttl "${WEBUI_SESSION_TTL:-15m}" \
+  -session-ttl "${WEBUI_SESSION_TTL:-1h}" \
   -job-timeout "${WEBUI_JOB_TIMEOUT:-30m}" \
   -max-jobs "${WEBUI_MAX_JOBS:-2}"
 
