@@ -112,6 +112,11 @@ grep -Fq 'exec "$@" </dev/null >> "$LOG_FILE" 2>&1' module/action.sh
   echo "FAIL action_server_detach_contract_missing"
   exit 1
 }
+grep -Fq 'signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)' server/cmd/webui-server/main.go
+if grep -Eq 'signal\.Notify\([^)]*SIGHUP' server/cmd/webui-server/main.go; then
+  echo "FAIL server_reenables_sighup"
+  exit 1
+fi
 [[ $(grep -Fc "sed 's/-//g' < /proc/sys/kernel/random/uuid" module/action.sh) -eq 2 ]] || {
   echo "FAIL portable_uuid_filter_missing"
   exit 1

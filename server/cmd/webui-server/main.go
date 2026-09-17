@@ -417,7 +417,10 @@ func main() {
 	go app.idleMonitor(server, idleTimeout, shutdown)
 
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	// SIGHUP is intentionally not subscribed here. The Action launcher starts
+	// the server with SIGHUP ignored; signal.Notify would re-enable delivery and
+	// recreate the launcher-exit race that the detached server is meant to avoid.
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-signals
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

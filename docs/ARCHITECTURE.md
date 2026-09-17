@@ -51,7 +51,7 @@ browser. For an embedded-host launch, the validated host bridge receives that
 same one-time URL from `--print-url` and navigates the current WebView to it.
 The server command line contains only paths and bounded settings, never tokens.
 
-For the normal Action path, the launcher closes server stdin and makes SIGHUP
+For the normal Action path, the launcher closes server stdin, inherits SIGHUP=ignore into the server, and the server does not re-subscribe to SIGHUP; this makes SIGHUP
 non-fatal before returning from `action.sh`. The server therefore remains
 available while Android completes the browser intent, but it is still
 user-triggered, loopback-only and bounded by the existing idle/session limits.

@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.4`
+`CORE_VERSION=0.6.5`
 
 | Capability | Included |
 |---|---|
@@ -362,6 +362,12 @@ Core v0.6 keeps all existing typed server mutation contracts and adds reusable b
 - mobile inventory rows wrap long values and tabs avoid smooth-centering/visible scrollbars.
 
 The status convention is optional. Consumers that do not report `action_state` keep the same action capability contract and simply omit active/blocked highlighting.
+
+## Core v0.6.5 Action SIGHUP survival correction
+
+Core v0.6.5 closes the remaining standalone Action lifetime race discovered on an Android root-manager execution surface. Core v0.6.2 detached the server with `nohup`/inherited `SIGHUP=ignore`, but the Go server then subscribed to `SIGHUP` with `signal.Notify`, which re-enabled delivery and shut the server down when the Action shell disappeared. The server now handles `SIGINT`/`SIGTERM` for explicit shutdown while intentionally inheriting the launcher's ignored `SIGHUP` disposition. Integration verification starts the server with the same detach contract, sends `SIGHUP`, and requires the listener/health endpoint to remain alive.
+
+Consumers that use standalone Action browser launch must pin the exact Core v0.6.5 template commit, rebuild their candidate, and repeat exact-device Action-button verification. The HTTP/session/authentication surface is unchanged.
 
 ## Core v0.6.4 session/job lifetime alignment
 

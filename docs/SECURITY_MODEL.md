@@ -77,7 +77,7 @@ malformed request, unsafe adapter extension and accidental secret packaging.
 ### Process
 
 - Server startup is explicitly user-triggered by module Action or a supported embedded-host WebUI selection.
-- The normal Action launcher closes server stdin and makes SIGHUP non-fatal before returning, preventing launcher-shell teardown from racing the browser bootstrap.
+- The normal Action launcher closes server stdin and starts the server with SIGHUP ignored; the server intentionally does not subscribe to SIGHUP, so launcher-shell teardown cannot race browser bootstrap. SIGINT/SIGTERM remain explicit shutdown signals.
 - This detachment does not create a boot service or permanent listener; the server remains loopback-only and idle/session bounded.
 - Embedded-host startup is bootstrap-only: the host bridge starts the same short-lived loopback server and does not become the privileged operation transport.
 - PID cleanup verifies process identity.
