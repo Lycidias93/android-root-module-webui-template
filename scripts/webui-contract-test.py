@@ -160,7 +160,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.6.5"',
+    'const CORE_VERSION = "0.6.6"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
@@ -239,6 +239,8 @@ if '${WEBUI_SESSION_TTL:-15m}' in action:
     failures.append("session_ttl_shorter_than_default_job")
 
 control = (ROOT / "module/bin/module-control").read_text(encoding="utf-8")
+if r"\(true\|false\)" in control:
+    failures.append("android_bre_boolean_alternation")
 for operation in ("capabilities)", "config-apply)", "action-file)", "job-run)", "inventory)"):
     if operation not in control:
         failures.append(f"control_operation={operation}")

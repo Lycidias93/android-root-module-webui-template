@@ -24,3 +24,4 @@ scripts/webui-embedded-host-bootstrap.test.mjs
 scripts/webui-mobile-input-viewport.test.mjs
 scripts/webui-v04-static.test.py
 scripts/webui-observability-static.test.py
+scripts/android-json-bool-portability.test.sh

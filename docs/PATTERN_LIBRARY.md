@@ -217,3 +217,7 @@ The shared implementation deliberately differs at the security boundary:
 - it does not allow a safety-lock force-edit bypass;
 - it does not chain independent mutations behind a misleading global `Save all`;
 - AshLooper-specific visual styling and module/domain logic are not adopted.
+
+## Portable JSON boolean extraction in Android adapters
+
+For a bounded private request file, extract the scalar token without regex alternation and then validate with shell `case`. This avoids GNU-vs-Toybox BRE differences such as `\|`. Keep the request path allowlisted, file size bounded, symlinks rejected, and treat any token other than literal `true` or `false` as invalid. Pair this with a regression that runs the adapter under an Android-like parser shim and compares persistent-state hashes before and after `dry_run=true`.

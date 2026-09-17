@@ -163,3 +163,7 @@ Consumers with custom WebUI markup must preserve the managed script order:
 `embedded-host-bootstrap.js` → `race-guard.js` → `observability.js` → `app.js` →
 optional `v03.js` → optional `v04.js`. Rebuild and reverify any existing release
 candidate after the core pin changes.
+
+## v0.6.6 Android boolean parser consumers
+
+Core v0.6.6 adds a portability contract for module-owned JSON boolean parsing. Android/Toybox `sed` must not depend on GNU BRE `\|` alternation for `true|false`. Consumers must update their module-owned adapter, rebuild, and prove that a `dry_run=true` request returns without changing persistent or runtime state. The adapter remains deliberately outside `core/manifest.txt`; the shared core owns the contract and regression guidance, while each consumer owns its concrete action semantics.

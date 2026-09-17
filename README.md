@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.5`
+`CORE_VERSION=0.6.6`
 
 | Capability | Included |
 |---|---|
@@ -427,3 +427,9 @@ while adding compatibility with KsuWebUI-style embedded module hosts:
 
 This lets the default-browser Action path and compatible embedded WebUI hosts
 coexist without maintaining two privileged backends.
+
+## Core v0.6.6 Android boolean request parsing correction
+
+Core v0.6.6 makes adapter JSON boolean parsing portable to Android/Toybox `sed`. The previous example used GNU-style BRE alternation (`\|`), which can yield an empty `dry_run` value on Android and incorrectly fall through to a productive action. The example adapter now extracts a bounded scalar token and validates it with a shell `case`, so `dry_run=true` remains non-mutating on Android. A dedicated regression runs the adapter behind an Android-like `sed` compatibility shim and requires persistent config to remain byte-identical.
+
+Consumers with module-owned adapters must update their own boolean parser; `module/bin/module-control` remains deliberately outside `core/manifest.txt`. Rebuild and repeat exact-device WebUI release acceptance after syncing Core v0.6.6.
