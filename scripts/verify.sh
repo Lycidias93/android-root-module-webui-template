@@ -200,6 +200,7 @@ python3 scripts/webui-contract-test.py
 python3 scripts/webui-v04-static.test.py
 python3 scripts/webui-observability-static.test.py
 python3 scripts/webui-release-audit.py --self-test
+./scripts/android-json-bool-portability.test.sh
 ./scripts/integration-test.sh
 
 tmp=$(mktemp -d)
@@ -220,4 +221,5 @@ echo "RESULT: WEBUI_CORE_V06_STATEFUL_MOBILE_UX_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V061_EMBEDDED_HOST_BOOTSTRAP_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V062_ACTION_BROWSER_LIFETIME_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V063_ACTION_APPLY_JOB_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V066_ANDROID_JSON_BOOL_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"

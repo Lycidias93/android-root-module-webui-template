@@ -420,3 +420,7 @@ Declared `dedupe_keys` coalesce only identical jobs that are still queued or run
 `POST /api/v1/v04/inventory-operation` accepts an operation name plus stable item ID. The server refreshes the bound inventory, requires that identity to still exist, then passes only the bound identity into the declared typed job.
 
 The shared frontend polls active work with bounded backoff and pauses polling while hidden. Declared phases are descriptive vocabulary only; no percentage progress is fabricated.
+
+## Android boolean request portability
+
+Module adapters that parse server-created JSON request files must treat `dry_run` and other booleans portably under Android/Toybox. Do not rely on GNU BRE `\|` alternation in `sed`; extract a bounded scalar token and validate it with a shell `case` (`true|false`) or an equivalently portable parser. A missing or invalid boolean must fail closed or use the operation-specific documented default. `dry_run=true` must never reach the productive action path.

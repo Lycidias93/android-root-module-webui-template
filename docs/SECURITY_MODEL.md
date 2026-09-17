@@ -203,3 +203,7 @@ transport. It exists only for hosts that already expose a KernelSU-compatible
 - After redirect, the embedded host bridge is no longer used by the WebUI. The
   one-time token is exchanged for the same HttpOnly session cookie and the
   normal server security model applies unchanged.
+
+## Android adapter parser boundary
+
+Typed server validation does not excuse a consumer adapter from parsing its private request file correctly on Android. Boolean parsing must be portable to Toybox/Android shell tooling. GNU-only BRE alternation must not be used where an empty parse could convert `dry_run=true` into a productive default. Release acceptance must prove that dry-run requests leave persistent state unchanged.
