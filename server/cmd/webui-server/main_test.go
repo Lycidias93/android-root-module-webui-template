@@ -89,7 +89,6 @@ func TestCoreHTMLAssetsAreServed(t *testing.T) {
 	dir := t.TempDir()
 	assets := []string{
 		"index.html",
-		"mobile-input-viewport.js",
 		"app.js",
 		"app.css",
 		"race-guard.js",
@@ -117,7 +116,6 @@ func TestCoreHTMLAssetsAreServed(t *testing.T) {
 
 	for _, path := range []string{
 		"/",
-		"/mobile-input-viewport.js",
 		"/app.js",
 		"/app.css",
 		"/race-guard.js",

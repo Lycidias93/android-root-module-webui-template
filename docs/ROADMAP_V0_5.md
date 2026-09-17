@@ -29,7 +29,7 @@ A scope clears only after a request that proves the local draft is no longer pen
 - successful `GET /api/v1/v03/collection` clears Profiles because the editor has reloaded authoritative state;
 - successful `POST /api/v1/v03/import/apply` clears Import.
 
-The global bar deliberately has no "Save all" operation. Independent adapter transactions are never chained into a false atomic action. `Discard local` reloads the browser session and therefore cannot mutate module state.
+Core v0.6.7 no longer renders a global dirty toolbar. Independent adapter transactions are never chained into a false atomic action; dirty scopes remain visible in Diagnostics and protected by `beforeunload`, while each editor keeps its own Save/Preview/Apply controls.
 
 ## Operation timeline
 

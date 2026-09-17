@@ -28,7 +28,7 @@ A successful process that reports `verdict=fail` is not accepted. A missing rout
 
 ## Gate B — exact installed candidate
 
-For Android/root-module releases, install the exact candidate package and run a repo-owned, read-only or isolated-state device audit against the installed bytes. The audit is module-specific at the adapter boundary, but must cover every enabled WebUI surface.
+For Android/root-module releases, install the exact candidate package and run a repo-owned, read-only or isolated-state device audit against the installed bytes. Browser/API acceptance must use the same root-manager launcher and effective Android execution environment (including PATH/tooling) as the user-facing entry point; a Termux-originated `su -c` launch is not equivalent unless the audit proves or normalizes environment parity. The audit is module-specific at the adapter boundary, but must cover every enabled WebUI surface.
 
 Minimum matrix:
 
@@ -36,9 +36,9 @@ Minimum matrix:
 2. loopback server start, bootstrap/session establishment, health and authenticated root page;
 3. HTTP GET for every script and stylesheet referenced by the shipped page; no referenced asset may return 404;
 4. enabled API routes with their expected success/disabled status;
-5. Settings `GET -> validated POST -> GET/effective-state` using isolated temporary state unless the release acceptance explicitly authorizes a harmless production mutation;
+5. Settings `GET -> validated POST -> GET/effective-state` using isolated temporary state unless the release acceptance explicitly authorizes a harmless production mutation; the POST must change at least one representative boolean value, prove the changed effective state, and restore the original state rather than replaying an unchanged GET payload;
 6. adapter request-path validation, lock/serialization behavior and cleanup after success/failure;
-7. UI wiring for refresh, save, logs, inventories, actions/jobs, dirty-state review/discard and diagnostics;
+7. UI wiring for refresh, save, logs, inventories, actions/jobs, dirty-state handling and diagnostics; Settings acceptance must exercise the real browser control -> Save -> request -> authoritative reload path, not only direct HTTP calls or listener/static wiring;
 8. safe actions/jobs/inventories exercised live where they are read-only; productive/dangerous controls covered by safe fixtures or bounded dispatch verification unless explicitly approved for live execution;
 9. bounded backend error capture sufficient to classify a failed operation instead of reporting only a generic browser error;
 10. `evidence_collection=complete`, `verdict=pass`, `failure_count=0`, and a stable candidate-bound result marker.

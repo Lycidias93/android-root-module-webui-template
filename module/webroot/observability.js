@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const CORE_VERSION = "0.6.6";
+  const CORE_VERSION = "0.6.7";
   const MAX_OPERATIONS = 200;
   const MAX_SNAPSHOT_DEPTH = 6;
   const MAX_SNAPSHOT_ITEMS = 50;
@@ -15,7 +15,6 @@
   const snapshots = new Map();
   const dirtyScopes = new Map();
   let ui = null;
-  let suppressBeforeUnload = false;
 
   function safeText(value, limit = 160) {
     const text = String(value ?? "");
@@ -222,12 +221,6 @@
     return true;
   }
 
-  function reviewFirstDirty() {
-    const first = dirtyScopes.values().next().value;
-    if (first?.panel && activatePanel(first.panel)) return;
-    activatePanel("diagnosticsPanel");
-  }
-
   function diagnosticsPayload() {
     return {
       core_version: CORE_VERSION,
@@ -255,12 +248,7 @@
 
   function renderDirty() {
     if (!ui) return;
-    const entries = [...dirtyScopes.values()];
-    ui.dirtyBar.hidden = entries.length === 0;
-    ui.dirtyText.textContent = entries.length
-      ? `${entries.length} unsaved ${entries.length === 1 ? "area" : "areas"} · ${entries.map(item => item.label).join(", ")}`
-      : "No unsaved changes";
-    ui.dirtyCard.textContent = entries.length ? `${entries.length}` : "0";
+    ui.dirtyCard.textContent = String(dirtyScopes.size);
   }
 
   function operationCard(entry) {
@@ -333,25 +321,7 @@
     ]);
     shell.insertBefore(diagnosticsPanel, safetyPanel || null);
 
-    const dirtyText = element("span", { text: "No unsaved changes" });
-    const reviewButton = element("button", { type: "button", text: "Review" });
-    const discardButton = element("button", { type: "button", className: "danger", text: "Discard local" });
-    reviewButton.addEventListener("click", reviewFirstDirty);
-    discardButton.addEventListener("click", () => {
-      suppressBeforeUnload = true;
-      window.location.reload();
-    });
-    const dirtyBar = element("aside", {
-      className: "core-dirty-bar",
-      attributes: { id: "coreDirtyBar", "aria-live": "polite" },
-    }, [
-      dirtyText,
-      element("div", { className: "actions-row compact" }, [reviewButton, discardButton]),
-    ]);
-    dirtyBar.hidden = true;
-    document.body.append(dirtyBar);
-
-    ui = { diagnosticsTab, diagnosticsPanel, coreCard, dirtyCard, operationCountCard, operationList, rawState, copyButton, clearButton, dirtyBar, dirtyText };
+    ui = { diagnosticsTab, diagnosticsPanel, coreCard, dirtyCard, operationCountCard, operationList, rawState, copyButton, clearButton };
     renderDirty();
     renderDiagnostics();
   }
@@ -378,7 +348,7 @@
   }, true);
 
   window.addEventListener("beforeunload", event => {
-    if (suppressBeforeUnload || !dirtyScopes.size) return;
+    if (!dirtyScopes.size) return;
     event.preventDefault();
     event.returnValue = "";
   });

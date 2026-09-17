@@ -167,3 +167,8 @@ candidate after the core pin changes.
 ## v0.6.6 Android boolean parser consumers
 
 Core v0.6.6 adds a portability contract for module-owned JSON boolean parsing. Android/Toybox `sed` must not depend on GNU BRE `\|` alternation for `true|false`. Consumers must update their module-owned adapter, rebuild, and prove that a `dry_run=true` request returns without changing persistent or runtime state. The adapter remains deliberately outside `core/manifest.txt`; the shared core owns the contract and regression guidance, while each consumer owns its concrete action semantics.
+
+
+## v0.6.7 mobile UX consumers
+
+Core v0.6.7 removes the global fixed dirty toolbar and the custom focused-control viewport scroller. Consumers must sync the complete manifest, including deletion of `mobile-input-viewport.js`, and must not retain stale page references or HTTP allowlist entries for that asset. Dirty tracking remains available through Diagnostics and `beforeunload`; saving remains owned by each typed editor. Exact-device acceptance must exercise a real boolean Settings change through Save and authoritative reload, plus field focus with the on-screen keyboard, using the same root-manager launch environment as production.
