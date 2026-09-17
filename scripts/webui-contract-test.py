@@ -47,7 +47,8 @@ expected_ids = {
     "statusDetails", "configForm", "dirtyBadge", "saveConfigButton",
     "actionStateSummary", "actionCards", "jobLaunchers", "jobList",
     "inventoryLaunchers", "inventoryRefreshButton", "inventoryMeta",
-    "inventoryOutput", "logFilter", "logOutput", "safetyCards",
+    "inventoryOutput", "notificationStatusCards", "notificationLifecycle",
+    "notificationTestButton", "notificationTestResult", "logFilter", "logOutput", "safetyCards",
 }
 missing = expected_ids - parser.ids
 if missing:
@@ -65,7 +66,7 @@ for stylesheet in ("app.css", "race-guard.css", "observability.css"):
         failures.append(f"stylesheet_missing={stylesheet}")
 if 'aria-live="polite"' not in html:
     failures.append("aria_live_missing")
-if parser.features != {"config", "actions", "jobs", "inventory", "logs"}:
+if parser.features != {"config", "actions", "jobs", "inventory", "notifications", "logs"}:
     failures.append(f"features={sorted(parser.features)}")
 
 embedded = (ROOT / "module/webroot/embedded-host-bootstrap.js").read_text(encoding="utf-8")
@@ -99,6 +100,7 @@ javascript = (ROOT / "module/webroot/app.js").read_text(encoding="utf-8")
 for endpoint in (
     "/api/v1/capabilities", "/api/v1/status", "/api/v1/config",
     "/api/v1/action", "/api/v1/jobs", "/api/v1/inventory", "/api/v1/log",
+    "/api/v1/notifications/status", "/api/v1/notifications/test",
 ):
     if endpoint not in javascript:
         failures.append(f"endpoint={endpoint}")
@@ -155,7 +157,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.6.7"',
+    'const CORE_VERSION = "0.7.0"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',

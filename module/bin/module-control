@@ -179,7 +179,8 @@ print_capabilities() {
   printf '"schema":"root-module-webui.capabilities.v1",'
   printf '"module":{"id":"%s","name":"%s","version":"%s"},' \
     "$(json_escape "$MODULE_ID")" "$(json_escape "$MODULE_NAME")" "$(json_escape "$MODULE_VERSION")"
-  printf '"features":{"config":true,"logs":true,"actions":true,"jobs":true,"inventory":true},'
+  printf '"features":{"config":true,"logs":true,"actions":true,"jobs":true,"inventory":true,"notifications":true},'
+  printf '"notifications":{"provider":"ntfy","label":"ntfy","supports_test":true,"lifecycle":["start","success","fail"]},'
   printf '"config_fields":['
   printf '{"key":"enabled","label":"Enabled","description":"Master switch for the example module.","type":"boolean","required":true},'
   printf '{"key":"mode","label":"Mode","description":"Example operating profile.","type":"enum","required":true,"options":[{"value":"balanced","label":"Balanced"},{"value":"performance","label":"Performance"},{"value":"battery","label":"Battery"}]},'
@@ -340,6 +341,16 @@ case "${1:-}" in
   inventory)
     [ "$#" -eq 2 ] || exit 2
     print_inventory "$2"
+    ;;
+  notifications-status)
+    [ "$#" -eq 1 ] || exit 2
+    printf '%s
+' '{"schema":"root-module-webui.notifications.status.v1","ok":true,"provider":"ntfy","enabled":false,"source":"module","mode":"off","endpoint_configured":false,"topic_configured":false,"token_file_configured":false,"lifecycle":["start","success","fail"]}'
+    ;;
+  notifications-test)
+    [ "$#" -eq 1 ] || exit 2
+    printf '%s
+' '{"schema":"root-module-webui.notifications.test.v1","ok":true,"provider":"ntfy","sent":false,"reason":"not_configured"}'
     ;;
   *)
     echo '{"ok":false,"error":"unsupported operation"}' >&2

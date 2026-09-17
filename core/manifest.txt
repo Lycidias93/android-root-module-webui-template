@@ -1,4 +1,5 @@
 module/action.sh
+module/lib/ntfy.sh
 module/webroot/index.html
 module/webroot/embedded-host-bootstrap.js
 module/webroot/app.js
@@ -24,3 +25,4 @@ scripts/webui-mobile-input-viewport.test.mjs
 scripts/webui-v04-static.test.py
 scripts/webui-observability-static.test.py
 scripts/android-json-bool-portability.test.sh
+scripts/ntfy-library.test.sh

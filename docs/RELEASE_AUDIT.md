@@ -62,3 +62,5 @@ No tag, release, or update-channel promotion should be published from a candidat
 ## Consumer integration
 
 Consumers that synchronize this template should keep `scripts/webui-release-audit.py` with the core and include this release gate in their own release checklist/CI. Module-specific adapter assertions remain in the consumer repository; reusable HTTP/static/server checks belong here in the shared template.
+
+Core 0.7.0 consumers enabling Notifications must cover status, same-origin guarded test, strict secret-safe schema validation and fake/loopback transport in repository acceptance. Exact-device acceptance should exercise configured-state status and a user-intended test notification.

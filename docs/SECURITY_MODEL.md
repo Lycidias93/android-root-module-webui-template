@@ -207,3 +207,7 @@ transport. It exists only for hosts that already expose a KernelSU-compatible
 ## Android adapter parser boundary
 
 Typed server validation does not excuse a consumer adapter from parsing its private request file correctly on Android. Boolean parsing must be portable to Toybox/Android shell tooling. GNU-only BRE alternation must not be used where an empty parse could convert `dry_run=true` into a productive default. Release acceptance must prove that dry-run requests leave persistent state unchanged.
+
+## Notification secret boundary
+
+Core 0.7.0 decodes notification status/test output with unknown-field rejection. URL, topic, token, token-file contents and Authorization values have no API field. The shared helper imports only allowlisted keys from a consumer-authorized private config source and never sources it. Notification failures are diagnostic and non-fatal to primary work.

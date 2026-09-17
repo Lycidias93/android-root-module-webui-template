@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const CORE_VERSION = "0.6.7";
+  const CORE_VERSION = "0.7.0";
   const MAX_OPERATIONS = 200;
   const MAX_SNAPSHOT_DEPTH = 6;
   const MAX_SNAPSHOT_ITEMS = 50;
@@ -91,6 +91,8 @@
     if (/^\/api\/v1\/jobs\/[^/]+\/output$/.test(path) && method === "GET") return "job.output";
     if (/^\/api\/v1\/jobs\/[^/]+$/.test(path) && method === "GET") return "job.status";
     if (path === "/api/v1/inventory" && method === "GET") return "inventory.read";
+    if (path === "/api/v1/notifications/status" && method === "GET") return "notifications.status";
+    if (path === "/api/v1/notifications/test" && method === "POST") return "notifications.test";
     if (path === "/api/v1/log" && method === "GET") return "log.read";
     if (path === "/api/v1/v03/capabilities" && method === "GET") return "v03.capabilities.read";
     if (path === "/api/v1/v03/collection" && method === "GET") return "collection.read";
@@ -128,6 +130,7 @@
     if (path === "/api/v1/capabilities") return "base_capabilities";
     if (path === "/api/v1/status") return "status";
     if (path === "/api/v1/jobs") return "jobs";
+    if (path === "/api/v1/notifications/status") return "notifications_status";
     if (path === "/api/v1/v03/capabilities") return "v03_capabilities";
     if (path === "/api/v1/v04/capabilities") return "v04_capabilities";
     return "";

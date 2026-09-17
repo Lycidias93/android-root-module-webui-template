@@ -98,6 +98,16 @@ echo "RESULT: STATIC_ASSET_HTTP_ROUTES_PASS"
 
 curl -fsS -b "$COOKIE" "$BASE/api/v1/capabilities" | grep -Fq 'root-module-webui.capabilities.v1'
 curl -fsS -b "$COOKIE" "$BASE/api/v1/status" | grep -Fq 'standalone_webui_example'
+curl -fsS -b "$COOKIE" "$BASE/api/v1/notifications/status" | grep -Fq '"provider":"ntfy"'
+curl -fsS \
+  -b "$COOKIE" \
+  -X POST \
+  -H "Origin: $BASE" \
+  -H 'X-WebUI-Request: 1' \
+  -H 'Content-Type: application/json' \
+  --data '{}' \
+  "$BASE/api/v1/notifications/test" | grep -Fq '"reason":"not_configured"'
+echo "RESULT: NOTIFICATIONS_HTTP_CONTRACT_PASS"
 
 curl -fsS \
   -b "$COOKIE" \

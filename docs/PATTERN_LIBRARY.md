@@ -221,3 +221,7 @@ The shared implementation deliberately differs at the security boundary:
 ## Portable JSON boolean extraction in Android adapters
 
 For a bounded private request file, extract the scalar token without regex alternation and then validate with shell `case`. This avoids GNU-vs-Toybox BRE differences such as `\|`. Keep the request path allowlisted, file size bounded, symlinks rejected, and treat any token other than literal `true` or `false` as invalid. Pair this with a regression that runs the adapter under an Android-like parser shim and compares persistent-state hashes before and after `dry_run=true`.
+
+## Standardized ntfy lifecycle notifications
+
+Use Core 0.7.0 for reusable secret-safe ntfy transport. Keep provider/status/test mechanics in core and domain lifecycle/message semantics in the consumer. Prefer reusing an already-authorized private ntfy config via the allowlisted loader rather than duplicating secrets, and test transport with a fake/loopback endpoint.

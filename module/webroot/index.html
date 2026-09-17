@@ -28,6 +28,7 @@
       <button class="tab" data-panel="actionsPanel" data-feature="actions">Actions</button>
       <button class="tab" data-panel="jobsPanel" data-feature="jobs">Jobs</button>
       <button class="tab" data-panel="inventoryPanel" data-feature="inventory">Inventory</button>
+      <button class="tab" data-panel="notificationsPanel" data-feature="notifications">Notifications</button>
       <button class="tab" data-panel="logsPanel" data-feature="logs">Logs</button>
       <button class="tab" data-panel="safetyPanel">Safety</button>
     </nav>
@@ -70,6 +71,16 @@
       </div>
       <p id="inventoryMeta" class="inventory-meta" aria-live="polite"></p>
       <div id="inventoryOutput" class="table-wrap"></div>
+    </section>
+
+    <section id="notificationsPanel" class="panel tab-panel" data-feature="notifications">
+      <div class="panel-heading">
+        <div><h2>Notifications</h2><p>Secret-safe provider status and test. Endpoint, topic and tokens are never shown.</p></div>
+        <button id="notificationTestButton" type="button">Send test</button>
+      </div>
+      <div id="notificationStatusCards" class="cards"></div>
+      <p id="notificationLifecycle" class="inventory-meta" aria-live="polite"></p>
+      <pre id="notificationTestResult" class="job-output">No notification test run.</pre>
     </section>
 
     <section id="logsPanel" class="panel tab-panel" data-feature="logs">

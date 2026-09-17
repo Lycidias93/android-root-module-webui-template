@@ -424,3 +424,7 @@ The shared frontend polls active work with bounded backoff and pauses polling wh
 ## Android boolean request portability
 
 Module adapters that parse server-created JSON request files must treat `dry_run` and other booleans portably under Android/Toybox. Do not rely on GNU BRE `\|` alternation in `sed`; extract a bounded scalar token and validate it with a shell `case` (`true|false`) or an equivalently portable parser. A missing or invalid boolean must fail closed or use the operation-specific documented default. `dry_run=true` must never reach the productive action path.
+
+## Notifications V1 (Core 0.7.0)
+
+`features.notifications=true` requires provider `ntfy` and an allowlisted lifecycle declaration. Adapter operations are `notifications-status` and optionally `notifications-test`. HTTP routes are `GET /api/v1/notifications/status` and same-origin guarded `POST /api/v1/notifications/test`; responses are strict secret-safe schemas from `NTFY_NOTIFICATIONS_V1.md`.

@@ -172,3 +172,7 @@ Core v0.6.6 adds a portability contract for module-owned JSON boolean parsing. A
 ## v0.6.7 mobile UX consumers
 
 Core v0.6.7 removes the global fixed dirty toolbar and the custom focused-control viewport scroller. Consumers must sync the complete manifest, including deletion of `mobile-input-viewport.js`, and must not retain stale page references or HTTP allowlist entries for that asset. Dirty tracking remains available through Diagnostics and `beforeunload`; saving remains owned by each typed editor. Exact-device acceptance must exercise a real boolean Settings change through Save and authoritative reload, plus field focus with the on-screen keyboard, using the same root-manager launch environment as production.
+
+## v0.7.0 notifications consumers
+
+Pin the exact Core 0.7.0 commit and sync the complete manifest including `module/lib/ntfy.sh`. Consumers enabling notifications implement the strict status operation and optional test operation; private provider values never cross the API. Rebuild and repeat repository plus exact-device WebUI acceptance after changing the core pin.
