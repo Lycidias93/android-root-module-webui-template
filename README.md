@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.6`
+`CORE_VERSION=0.6.7`
 
 | Capability | Included |
 |---|---|
@@ -433,3 +433,10 @@ coexist without maintaining two privileged backends.
 Core v0.6.6 makes adapter JSON boolean parsing portable to Android/Toybox `sed`. The previous example used GNU-style BRE alternation (`\|`), which can yield an empty `dry_run` value on Android and incorrectly fall through to a productive action. The example adapter now extracts a bounded scalar token and validates it with a shell `case`, so `dry_run=true` remains non-mutating on Android. A dedicated regression runs the adapter behind an Android-like `sed` compatibility shim and requires persistent config to remain byte-identical.
 
 Consumers with module-owned adapters must update their own boolean parser; `module/bin/module-control` remains deliberately outside `core/manifest.txt`. Rebuild and repeat exact-device WebUI release acceptance after syncing Core v0.6.6.
+
+
+## Core v0.6.7 native mobile scrolling and unobtrusive dirty-state UX
+
+Core v0.6.7 removes the fixed global Review/Discard dirty-state toolbar and the focused-control `scrollIntoView()` helper. Dirty scopes remain session-local, are still visible in Diagnostics, clear only after authoritative successful requests, and continue to protect unsaved drafts with the browser `beforeunload` guard. Settings/Profile/Import keep their own transaction-specific controls; the core no longer overlays module controls with a second global action surface.
+
+Mobile field focus is left to the browser/WebView instead of being re-centered by core JavaScript when the visual viewport changes. Consumers must sync the complete v0.6.7 core manifest and repeat exact-device browser acceptance, including real checkbox edit -> Save -> authoritative reload and focus/keyboard behavior through the same root-manager launch path used by users.

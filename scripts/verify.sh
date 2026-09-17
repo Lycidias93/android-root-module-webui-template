@@ -21,7 +21,6 @@ required=(
   module/config/module.conf.default
   module/webroot/index.html
   module/webroot/embedded-host-bootstrap.js
-  module/webroot/mobile-input-viewport.js
   module/webroot/app.js
   module/webroot/app.css
   module/webroot/race-guard.js
@@ -183,7 +182,7 @@ if grep -RInE 'eval\(|new Function|insertAdjacentHTML|innerHTML[[:space:]]*=' mo
   echo "FAIL dynamic_code_or_html_in_core_ui"
   exit 1
 fi
-for file in module/webroot/embedded-host-bootstrap.js module/webroot/mobile-input-viewport.js module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
+for file in module/webroot/embedded-host-bootstrap.js module/webroot/app.js module/webroot/race-guard.js module/webroot/observability.js module/webroot/v03.js module/webroot/v04.js; do
   node --check "$file"
 done
 
@@ -199,6 +198,7 @@ go test ./...
 python3 scripts/webui-contract-test.py
 python3 scripts/webui-v04-static.test.py
 python3 scripts/webui-observability-static.test.py
+node --test scripts/webui-mobile-input-viewport.test.mjs
 python3 scripts/webui-release-audit.py --self-test
 ./scripts/android-json-bool-portability.test.sh
 ./scripts/integration-test.sh
@@ -222,4 +222,5 @@ echo "RESULT: WEBUI_CORE_V061_EMBEDDED_HOST_BOOTSTRAP_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V062_ACTION_BROWSER_LIFETIME_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V063_ACTION_APPLY_JOB_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V066_ANDROID_JSON_BOOL_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V067_NATIVE_MOBILE_SCROLL_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"

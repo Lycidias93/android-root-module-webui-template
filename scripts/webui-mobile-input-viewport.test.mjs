@@ -1,21 +1,16 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile, stat } from "node:fs/promises";
 
-const index = await readFile(new URL('../module/webroot/index.html', import.meta.url), 'utf8');
-const viewportScript = await readFile(new URL('../module/webroot/mobile-input-viewport.js', import.meta.url), 'utf8');
+const base = new URL("../module/webroot/", import.meta.url);
+const index = await readFile(new URL("index.html", base), "utf8");
 
-test('mobile input viewport helper is shipped and loaded before app.js', () => {
-  const helper = index.indexOf('<script src="mobile-input-viewport.js"></script>');
-  const app = index.indexOf('<script src="app.js"></script>');
-  assert.ok(helper >= 0);
-  assert.ok(app > helper);
-});
-
-test('mobile input viewport helper tracks focused controls across keyboard resize', () => {
-  assert.match(viewportScript, /window\.visualViewport/);
-  assert.match(viewportScript, /focusin/);
-  assert.match(viewportScript, /scrollIntoView/);
-  assert.match(viewportScript, /viewport\.addEventListener\('resize'/);
-  assert.match(viewportScript, /viewport\.addEventListener\('scroll'/);
+test("core leaves focused-control scrolling to the browser", async () => {
+  assert.doesNotMatch(index, /mobile-input-viewport\.js/);
+  await assert.rejects(stat(new URL("mobile-input-viewport.js", base)), error => error?.code === "ENOENT");
+  for (const name of ["app.js", "observability.js", "v03.js", "v04.js"]) {
+    const source = await readFile(new URL(name, base), "utf8");
+    assert.doesNotMatch(source, /addEventListener\(["']focusin["']/);
+    assert.doesNotMatch(source, /visualViewport/);
+  }
 });

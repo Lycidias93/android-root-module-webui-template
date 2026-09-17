@@ -175,9 +175,9 @@ authoritative.
   key names are replaced with `[redacted]`.
 - Diagnostics are not persisted to localStorage, sessionStorage or disk and are
   never transmitted off-device by the core.
-- Global dirty state represents browser-local drafts only. It never creates a
-  cross-transaction `Save all` operation; `Discard local` reloads the page and
-  performs no module mutation.
+- Global dirty state represents browser-local drafts only. It is exposed through
+  Diagnostics and the browser `beforeunload` guard, but the core creates no fixed
+  toolbar and no cross-transaction `Save all` or discard mutation.
 
 Adapter authors remain responsible for never returning secrets under misleading
 non-sensitive field names. See `docs/ROADMAP_V0_5.md` for the exact allowlist and
