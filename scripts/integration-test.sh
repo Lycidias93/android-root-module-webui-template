@@ -39,7 +39,7 @@ TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 printf '%s\n' "$TOKEN" > "$TMP/runtime/bootstrap.token"
 chmod 0600 "$TMP/runtime/bootstrap.token"
 
-"$TMP/webui-server" \
+nohup "$TMP/webui-server" \
   -listen 127.0.0.1:0 \
   -webroot "$TMP/module/webroot" \
   -control "$TMP/module/bin/module-control" \
@@ -53,7 +53,7 @@ chmod 0600 "$TMP/runtime/bootstrap.token"
   -max-jobs 2 \
   -state-file "$TMP/runtime/state.json" \
   -pid-file "$TMP/runtime/pid" \
-  > "$TMP/server.log" 2>&1 &
+  </dev/null > "$TMP/server.log" 2>&1 &
 PID=$!
 
 for _ in $(seq 1 80); do
@@ -67,6 +67,15 @@ BASE="http://127.0.0.1:$PORT"
 COOKIE="$TMP/cookies.txt"
 
 curl -fsS "$BASE/api/v1/health" | grep -Fq '"ok":true'
+
+# Model the Android Action launcher contract: the child inherits SIGHUP=ignore
+# from nohup/trap before exec. The Go server must not re-enable SIGHUP through
+# signal.Notify, otherwise root-manager shell teardown kills it immediately.
+kill -HUP "$PID"
+sleep 0.2
+kill -0 "$PID"
+curl -fsS "$BASE/api/v1/health" | grep -Fq '"ok":true'
+echo "RESULT: WEBUI_SERVER_HUP_SURVIVAL_PASS"
 
 cmdline=$(tr '\000' ' ' < "/proc/$PID/cmdline")
 if grep -Fq "$TOKEN" <<< "$cmdline"; then

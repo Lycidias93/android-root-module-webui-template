@@ -99,6 +99,10 @@ server endpoint and requires no new adapter capability. Base-v1, v0.3 and v0.4
 modules can therefore adopt `CORE_VERSION=0.5.0` without an adapter migration,
 but must sync the complete manifest and pin the exact template commit.
 
+## v0.6.5 Action SIGHUP survival consumers
+
+Core v0.6.5 corrects the detached Action-server lifetime contract. The launcher already starts the server with `SIGHUP` ignored, but older server code subscribed to `SIGHUP` and therefore re-enabled the signal. Consumers using standalone Action browser launch must sync the complete v0.6.5 core, pin its exact template commit, rebuild, and verify that the Action-launched loopback listener survives launcher exit before browser bootstrap.
+
 ## v0.6.4 session/job lifetime consumers
 
 Core v0.6.4 changes the reusable launcher defaults without changing the HTTP
