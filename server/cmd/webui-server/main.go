@@ -89,6 +89,13 @@ type inventoryDefinition struct {
 	Description string `json:"description,omitempty"`
 }
 
+type notificationCapability struct {
+	Provider     string   `json:"provider"`
+	Label        string   `json:"label,omitempty"`
+	SupportsTest bool     `json:"supports_test,omitempty"`
+	Lifecycle    []string `json:"lifecycle,omitempty"`
+}
+
 type moduleDefinition struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -96,13 +103,14 @@ type moduleDefinition struct {
 }
 
 type capabilityDocument struct {
-	Schema      string                `json:"schema"`
-	Module      moduleDefinition      `json:"module"`
-	Features    map[string]bool       `json:"features"`
-	Config      []configField         `json:"config_fields,omitempty"`
-	Actions     []actionDefinition    `json:"actions,omitempty"`
-	Jobs        []jobDefinition       `json:"jobs,omitempty"`
-	Inventories []inventoryDefinition `json:"inventories,omitempty"`
+	Schema        string                  `json:"schema"`
+	Module        moduleDefinition        `json:"module"`
+	Features      map[string]bool         `json:"features"`
+	Config        []configField           `json:"config_fields,omitempty"`
+	Actions       []actionDefinition      `json:"actions,omitempty"`
+	Jobs          []jobDefinition         `json:"jobs,omitempty"`
+	Inventories   []inventoryDefinition   `json:"inventories,omitempty"`
+	Notifications *notificationCapability `json:"notifications,omitempty"`
 }
 
 type actionRequest struct {
@@ -128,6 +136,27 @@ type responseEnvelope struct {
 	Service      string              `json:"service,omitempty"`
 	Capabilities *capabilityDocument `json:"capabilities,omitempty"`
 	Data         any                 `json:"data,omitempty"`
+}
+
+type notificationStatusDocument struct {
+	Schema              string   `json:"schema"`
+	OK                  bool     `json:"ok"`
+	Provider            string   `json:"provider"`
+	Enabled             bool     `json:"enabled"`
+	Source              string   `json:"source"`
+	Mode                string   `json:"mode"`
+	EndpointConfigured  bool     `json:"endpoint_configured"`
+	TopicConfigured     bool     `json:"topic_configured"`
+	TokenFileConfigured bool     `json:"token_file_configured"`
+	Lifecycle           []string `json:"lifecycle"`
+}
+
+type notificationTestDocument struct {
+	Schema   string `json:"schema"`
+	OK       bool   `json:"ok"`
+	Provider string `json:"provider"`
+	Sent     bool   `json:"sent"`
+	Reason   string `json:"reason"`
 }
 
 type limitedBuffer struct {
@@ -343,6 +372,15 @@ func main() {
 		if _, err := app.runControl(ctx, maxControlOutput, "config-get"); err != nil && app.capabilities.Features["config"] {
 			logger.Fatalf("config self-test: %v", err)
 		}
+		if app.capabilities.Features["notifications"] {
+			output, err := app.runControl(ctx, maxControlOutput, "notifications-status")
+			if err != nil {
+				logger.Fatalf("notifications self-test: %v", err)
+			}
+			if _, err := app.decodeNotificationStatus(output); err != nil {
+				logger.Fatalf("notifications self-test: %v", err)
+			}
+		}
 		fmt.Printf("service=webui-server\nversion=%s\ncapability_schema=%s\nmodule_id=%s\nRESULT: WEBUI_SERVER_SELF_TEST_PASS\n",
 			version, app.capabilities.Schema, app.capabilities.Module.ID)
 		return
@@ -400,6 +438,8 @@ func main() {
 	mux.HandleFunc("/api/v1/jobs", app.requireSession(app.jobsHandler))
 	mux.HandleFunc("/api/v1/jobs/", app.requireSession(app.jobHandler))
 	mux.HandleFunc("/api/v1/inventory", app.requireSession(app.inventory))
+	mux.HandleFunc("/api/v1/notifications/status", app.requireSession(app.notificationsStatus))
+	mux.HandleFunc("/api/v1/notifications/test", app.requireSession(app.notificationsTest))
 	registerV03Handlers(mux, app)
 	registerV04Handlers(mux, app)
 	mux.HandleFunc("/", app.pageOrAsset)
@@ -1000,6 +1040,109 @@ func (a *application) inventory(w http.ResponseWriter, r *http.Request) {
 	writeValidatedJSON(w, output)
 }
 
+func notificationLifecycleValid(value string) bool {
+	switch value {
+	case "start", "success", "fail", "warn":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateNotificationLifecycle(values []string) error {
+	seen := make(map[string]bool)
+	for _, value := range values {
+		if !notificationLifecycleValid(value) {
+			return fmt.Errorf("unsupported notification lifecycle: %s", value)
+		}
+		if seen[value] {
+			return fmt.Errorf("duplicate notification lifecycle: %s", value)
+		}
+		seen[value] = true
+	}
+	return nil
+}
+
+func (a *application) decodeNotificationStatus(output []byte) (notificationStatusDocument, error) {
+	var document notificationStatusDocument
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&document); err != nil {
+		return document, fmt.Errorf("invalid notification status JSON: %w", err)
+	}
+	if document.Schema != "root-module-webui.notifications.status.v1" || !document.OK {
+		return document, errors.New("invalid notification status contract")
+	}
+	if a.capabilities.Notifications == nil || document.Provider != a.capabilities.Notifications.Provider {
+		return document, errors.New("notification provider mismatch")
+	}
+	if !safeNamePattern.MatchString(document.Source) || !safeNamePattern.MatchString(document.Mode) {
+		return document, errors.New("invalid notification source or mode")
+	}
+	if err := validateNotificationLifecycle(document.Lifecycle); err != nil {
+		return document, err
+	}
+	return document, nil
+}
+
+func (a *application) notificationsStatus(w http.ResponseWriter, r *http.Request) {
+	if !a.capabilities.Features["notifications"] || a.capabilities.Notifications == nil {
+		writeJSON(w, http.StatusNotFound, responseEnvelope{OK: false, Error: "notification capability disabled"})
+		return
+	}
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w, http.MethodGet)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	output, err := a.runControl(ctx, maxControlOutput, "notifications-status")
+	if err != nil {
+		a.controlError(w, err)
+		return
+	}
+	document, err := a.decodeNotificationStatus(output)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, responseEnvelope{OK: false, Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, responseEnvelope{OK: true, Data: document})
+}
+
+func (a *application) notificationsTest(w http.ResponseWriter, r *http.Request) {
+	definition := a.capabilities.Notifications
+	if !a.capabilities.Features["notifications"] || definition == nil || !definition.SupportsTest {
+		writeJSON(w, http.StatusNotFound, responseEnvelope{OK: false, Error: "notification test capability disabled"})
+		return
+	}
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w, http.MethodPost)
+		return
+	}
+	if !a.requireMutation(w, r) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	output, err := a.runControl(ctx, maxControlOutput, "notifications-test")
+	if err != nil {
+		a.controlError(w, err)
+		return
+	}
+	var document notificationTestDocument
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&document); err != nil {
+		writeJSON(w, http.StatusBadGateway, responseEnvelope{OK: false, Error: "invalid notification test JSON"})
+		return
+	}
+	if document.Schema != "root-module-webui.notifications.test.v1" || !document.OK || document.Provider != definition.Provider || !safeNamePattern.MatchString(document.Reason) {
+		writeJSON(w, http.StatusBadGateway, responseEnvelope{OK: false, Error: "invalid notification test contract"})
+		return
+	}
+	writeJSON(w, http.StatusOK, responseEnvelope{OK: true, Data: document})
+}
+
 func (a *application) loadCapabilities(ctx context.Context) error {
 	output, err := a.runControl(ctx, maxControlOutput, "capabilities")
 	if err != nil {
@@ -1073,6 +1216,28 @@ func (a *application) loadCapabilities(ctx context.Context) error {
 			return fmt.Errorf("duplicate inventory: %s", inventory.Name)
 		}
 		a.inventoryIndex[inventory.Name] = inventory
+	}
+
+	notificationsEnabled := a.capabilities.Features["notifications"]
+	if notificationsEnabled {
+		definition := a.capabilities.Notifications
+		if definition == nil {
+			return errors.New("notifications feature requires notifications definition")
+		}
+		if definition.Provider != "ntfy" {
+			return errors.New("unsupported notification provider")
+		}
+		if definition.Label != "" && (len(definition.Label) > 64 || strings.ContainsAny(definition.Label, "\r\n")) {
+			return errors.New("invalid notification label")
+		}
+		if len(definition.Lifecycle) == 0 {
+			return errors.New("notification lifecycle must not be empty")
+		}
+		if err := validateNotificationLifecycle(definition.Lifecycle); err != nil {
+			return err
+		}
+	} else if a.capabilities.Notifications != nil {
+		return errors.New("notifications definition requires notifications feature")
 	}
 	if err := a.validateActionJobBindings(); err != nil {
 		return err

@@ -59,6 +59,8 @@ def integration_contract(source: str) -> list[str]:
         "action": '"$BASE/api/v1/action"',
         "jobs": '"$BASE/api/v1/jobs"',
         "inventory": '"$BASE/api/v1/inventory?name=examples"',
+        "notifications_status": '"$BASE/api/v1/notifications/status"',
+        "notifications_test": '"$BASE/api/v1/notifications/test"',
         "unauthenticated": 'unauthenticated=',
         "origin_rejected": 'origin_rejected=',
     }

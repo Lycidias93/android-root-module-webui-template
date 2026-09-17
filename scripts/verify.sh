@@ -14,6 +14,7 @@ required=(
   core/manifest.txt
   module/module.prop
   module/action.sh
+  module/lib/ntfy.sh
   module/customize.sh
   module/service.sh
   module/uninstall.sh
@@ -37,6 +38,7 @@ required=(
   server/cmd/webui-server/v04_test.go
   scripts/webui-observability-static.test.py
   scripts/webui-release-audit.py
+  scripts/ntfy-library.test.sh
   docs/API_CONTRACT.md
   docs/IMPORT_EXPORT_CONTRACT_V1.md
   docs/ARCHITECTURE.md
@@ -47,6 +49,7 @@ required=(
   docs/ROADMAP_V0_4.md
   docs/ROADMAP_V0_5.md
   docs/SECURITY_MODEL.md
+  docs/NTFY_NOTIFICATIONS_V1.md
 )
 
 for file in "${required[@]}"; do
@@ -201,6 +204,8 @@ python3 scripts/webui-observability-static.test.py
 node --test scripts/webui-mobile-input-viewport.test.mjs
 python3 scripts/webui-release-audit.py --self-test
 ./scripts/android-json-bool-portability.test.sh
+sh -n module/lib/ntfy.sh
+./scripts/ntfy-library.test.sh
 ./scripts/integration-test.sh
 
 tmp=$(mktemp -d)
@@ -223,4 +228,5 @@ echo "RESULT: WEBUI_CORE_V062_ACTION_BROWSER_LIFETIME_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V063_ACTION_APPLY_JOB_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V066_ANDROID_JSON_BOOL_CONTRACT_PASS"
 echo "RESULT: WEBUI_CORE_V067_NATIVE_MOBILE_SCROLL_CONTRACT_PASS"
+echo "RESULT: WEBUI_CORE_V070_NOTIFICATIONS_NTFY_CONTRACT_PASS"
 echo "RESULT: VERIFY_PASS"

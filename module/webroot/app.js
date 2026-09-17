@@ -13,6 +13,7 @@
     inventoryCache: new Map(),
     inventoryCurrent: "",
     inventorySequence: 0,
+    notificationStatus: null,
   };
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
@@ -35,6 +36,10 @@
     inventoryRefreshButton: $("#inventoryRefreshButton"),
     inventoryMeta: $("#inventoryMeta"),
     inventoryOutput: $("#inventoryOutput"),
+    notificationStatusCards: $("#notificationStatusCards"),
+    notificationLifecycle: $("#notificationLifecycle"),
+    notificationTestButton: $("#notificationTestButton"),
+    notificationTestResult: $("#notificationTestResult"),
     logFilter: $("#logFilter"),
     logOutput: $("#logOutput"),
     safetyCards: $("#safetyCards"),
@@ -638,6 +643,43 @@
       : state.logText || "Log is empty.";
   }
 
+
+  function renderNotifications() {
+    if (!ui.notificationStatusCards) return;
+    const data = state.notificationStatus?.data || {};
+    const yesNo = value => value === true ? "yes" : "no";
+    ui.notificationStatusCards.replaceChildren(
+      card("Provider", data.provider || "—", "muted"),
+      card("Enabled", yesNo(data.enabled), data.enabled ? "good" : "caution"),
+      card("Source", data.source || "—", "muted"),
+      card("Mode", data.mode || "—", "muted"),
+      card("Endpoint configured", yesNo(data.endpoint_configured), data.endpoint_configured ? "good" : "caution"),
+      card("Token file configured", yesNo(data.token_file_configured), "muted"),
+    );
+    if (ui.notificationLifecycle) ui.notificationLifecycle.textContent = `Lifecycle: ${Array.isArray(data.lifecycle) ? data.lifecycle.join(" · ") : "none"}. Secret values are never returned by this API.`;
+    if (ui.notificationTestButton) ui.notificationTestButton.disabled = state.capabilities?.notifications?.supports_test !== true;
+  }
+
+  async function loadNotifications() {
+    state.notificationStatus = await api("/api/v1/notifications/status");
+    renderNotifications();
+  }
+
+  async function sendNotificationTest() {
+    if (!ui.notificationTestButton) return;
+    ui.notificationTestButton.disabled = true;
+    if (ui.notificationTestResult) ui.notificationTestResult.textContent = "Sending test…";
+    try {
+      const response = await api("/api/v1/notifications/test", { method: "POST", body: "{}" });
+      const data = response?.data || {};
+      if (ui.notificationTestResult) ui.notificationTestResult.textContent = `provider=${data.provider || "unknown"}\nsent=${data.sent === true ? "yes" : "no"}\nreason=${data.reason || "unknown"}`;
+      await loadNotifications();
+      showNotice(data.sent === true ? "Notification test sent." : `Notification test: ${data.reason || "not sent"}.`, data.sent === true ? "good" : "caution");
+    } finally {
+      if (ui.notificationTestButton) ui.notificationTestButton.disabled = state.capabilities?.notifications?.supports_test !== true;
+    }
+  }
+
   async function loadLog() {
     state.logText = await api("/api/v1/log?lines=300");
     renderLog();
@@ -658,6 +700,7 @@
         : Promise.resolve(),
       state.capabilities?.features?.logs ? loadLog() : Promise.resolve(),
       state.capabilities?.features?.jobs ? refreshJobs() : Promise.resolve(),
+      state.capabilities?.features?.notifications ? loadNotifications() : Promise.resolve(),
       state.inventoryCurrent ? loadInventory(state.inventoryCurrent, { force: true }) : Promise.resolve(),
     ]);
     renderConfig();
@@ -677,6 +720,7 @@
       }
     });
     ui.logFilter.addEventListener("input", renderLog);
+    ui.notificationTestButton?.addEventListener("click", () => sendNotificationTest().catch(error => showError(error)));
     ui.inventoryRefreshButton?.addEventListener("click", () => {
       if (!state.inventoryCurrent) return;
       loadInventory(state.inventoryCurrent, { force: true })

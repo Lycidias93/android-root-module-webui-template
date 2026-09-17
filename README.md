@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.6.7`
+`CORE_VERSION=0.7.0`
 
 | Capability | Included |
 |---|---|
@@ -440,3 +440,9 @@ Consumers with module-owned adapters must update their own boolean parser; `modu
 Core v0.6.7 removes the fixed global Review/Discard dirty-state toolbar and the focused-control `scrollIntoView()` helper. Dirty scopes remain session-local, are still visible in Diagnostics, clear only after authoritative successful requests, and continue to protect unsaved drafts with the browser `beforeunload` guard. Settings/Profile/Import keep their own transaction-specific controls; the core no longer overlays module controls with a second global action surface.
 
 Mobile field focus is left to the browser/WebView instead of being re-centered by core JavaScript when the visual viewport changes. Consumers must sync the complete v0.6.7 core manifest and repeat exact-device browser acceptance, including real checkbox edit -> Save -> authoritative reload and focus/keyboard behavior through the same root-manager launch path used by users.
+
+## Core v0.7.0 standardized notifications
+
+Core v0.7.0 adds an opt-in `notifications` capability. The first standardized provider is `ntfy`. Consumers declare lifecycle events; the server exposes authenticated secret-safe status and same-origin test endpoints, and the shared UI renders a Notifications panel.
+
+The status schema intentionally has no endpoint/topic/token value fields. `module/lib/ntfy.sh` supplies allowlisted private-config loading, endpoint resolution and bounded non-fatal delivery so consumers can reuse an existing private ntfy configuration without duplicating secrets.

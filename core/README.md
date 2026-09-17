@@ -14,3 +14,7 @@ Use `scripts/sync-core.sh` from a clean checkout to preview or apply a core upda
 The target repository must use the same `module/`, `server/`, and `scripts/`
 layout. A generated `webui.lock` records the imported core version and source
 commit.
+
+## Notifications ownership (Core 0.7.0)
+
+The shared core owns notification capability validation, secret-safe status/test transport, Notifications UI, observability labels and `module/lib/ntfy.sh`. Consumers own lifecycle timing, authorized private config source and message content. Notification transport failure never changes the primary operation result.
