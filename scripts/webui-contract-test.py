@@ -157,7 +157,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.7.0"',
+    'const CORE_VERSION = "0.7.1"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
