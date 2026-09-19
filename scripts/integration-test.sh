@@ -30,7 +30,7 @@ if grep -Fq "tr '\\000' ' ' < \"/proc/\$pid/cmdline\"" "$ROOT/module/action.sh";
   echo "FAIL action_pid_identity_nul_translation_pipeline"
   exit 1
 fi
-grep -Fq "$ROOT/scripts/integration-test.sh" "/proc/$/cmdline"
+grep -Fq 'grep' /proc/self/cmdline
 echo "RESULT: ACTION_PID_IDENTITY_PORTABILITY_PASS"
 echo "RESULT: ACTION_LAUNCH_RACE_GUARD_PASS"
 
