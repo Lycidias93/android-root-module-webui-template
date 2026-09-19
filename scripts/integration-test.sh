@@ -25,6 +25,13 @@ if grep -Fq 'is_our_pid "$SERVER_PID" || break' "$ROOT/module/action.sh"; then
 fi
 grep -Fq 'is_our_pid "$SERVER_PID" || fail "server_identity_mismatch"' "$ROOT/module/action.sh"
 grep -Fq '[ "$READY_PID" = "$SERVER_PID" ] || fail "server_pid_mismatch"' "$ROOT/module/action.sh"
+grep -Fq 'grep -Fq "$SERVER" "/proc/$pid/cmdline" 2>/dev/null' "$ROOT/module/action.sh"
+if grep -Fq "tr '\\000' ' ' < \"/proc/\$pid/cmdline\"" "$ROOT/module/action.sh"; then
+  echo "FAIL action_pid_identity_nul_translation_pipeline"
+  exit 1
+fi
+grep -Fq 'grep' /proc/self/cmdline
+echo "RESULT: ACTION_PID_IDENTITY_PORTABILITY_PASS"
 echo "RESULT: ACTION_LAUNCH_RACE_GUARD_PASS"
 
 cp -a "$ROOT/module" "$TMP/module"

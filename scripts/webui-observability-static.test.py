@@ -6,10 +6,10 @@ js = (ROOT / "module/webroot/observability.js").read_text()
 css = (ROOT / "module/webroot/observability.css").read_text()
 index = (ROOT / "module/webroot/index.html").read_text()
 manifest = (ROOT / "core/manifest.txt").read_text() if (ROOT / "core/manifest.txt").exists() else ""
-version = (ROOT / "CORE_VERSION").read_text().strip() if (ROOT / "CORE_VERSION").exists() else "0.7.0"
+version = (ROOT / "CORE_VERSION").read_text().strip() if (ROOT / "CORE_VERSION").exists() else "0.7.1"
 
 required_js = [
-    'const CORE_VERSION = "0.7.0"',
+    'const CORE_VERSION = "0.7.1"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'SENSITIVE_KEY',
@@ -59,7 +59,7 @@ assert 'snapshots.set' in js and 'operations.push' in js
 assert 'embedded-host-bootstrap.js' in index and 'observability.css' in index and 'observability.js' in index
 assert index.index('embedded-host-bootstrap.js') < index.index('race-guard.js') < index.index('observability.js') < index.index('app.js') < index.index('/v03.js') < index.index('/v04.js')
 assert '.core-dirty-bar' not in css and '.core-operation-entry' in css
-assert version == "0.7.0", f"expected CORE_VERSION 0.7.0, got {version}"
+assert version == "0.7.1", f"expected CORE_VERSION 0.7.1, got {version}"
 if manifest:
     assert "module/webroot/embedded-host-bootstrap.js" in manifest
     assert "module/webroot/observability.js" in manifest
