@@ -13,7 +13,7 @@ and then redirects the WebView to the authenticated loopback session.
 
 ## Foundation status
 
-`CORE_VERSION=0.7.1`
+`CORE_VERSION=0.7.2`
 
 | Capability | Included |
 |---|---|
@@ -448,8 +448,8 @@ Core v0.7.0 adds an opt-in `notifications` capability. The first standardized pr
 The status schema intentionally has no endpoint/topic/token value fields. `module/lib/ntfy.sh` supplies allowlisted private-config loading, endpoint resolution and bounded non-fatal delivery so consumers can reuse an existing private ntfy configuration without duplicating secrets.
 
 
-## Core v0.7.1 Android Action PID identity portability
+## Core v0.7.2 Android Action PID identity portability
 
-Core v0.7.1 replaces the Action launcher's NUL-translation pipeline in `is_our_pid()` with a direct fixed-string read of `/proc/<pid>/cmdline`. On the measured Android/Magisk shell, the previous `tr '\\000' ... | grep` pipeline could remain blocked while checking a PID, preventing `action.sh --print-url` from returning even after the loopback server stopped.
+Core v0.7.2 replaces the Action launcher's NUL-translation pipeline in `is_our_pid()` with a direct fixed-string read of `/proc/<pid>/cmdline`. On the measured Android/Magisk shell, the previous `tr '\\000' ... | grep` pipeline could remain blocked while checking a PID, preventing `action.sh --print-url` from returning even after the loopback server stopped.
 
 The direct `grep -Fq` check is bounded by the finite procfs cmdline file, preserves executable identity validation, and is covered by the shared integration regression plus exact-device consumer acceptance.
