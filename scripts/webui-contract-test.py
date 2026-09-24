@@ -120,6 +120,12 @@ for guard in (
     'Reapply current setting',
     'state.inventoryCache',
     'inventorySequence',
+    'visibilityGeneration: 0',
+    'const visibilityGeneration = state.visibilityGeneration;',
+    'document.hidden || visibilityGeneration !== state.visibilityGeneration',
+    'state.visibilityGeneration += 1;',
+    'state.inventorySequence += 1;',
+    'loadInventory(state.inventoryCurrent, { force: true })',
     'aria-pressed',
     'function loadInventory(name, { force = false } = {})',
     'function syncRunState()',
@@ -157,7 +163,7 @@ for guard in (
 
 observability = (ROOT / "module/webroot/observability.js").read_text(encoding="utf-8")
 for guard in (
-    'const CORE_VERSION = "0.7.1"',
+    'const CORE_VERSION = "0.7.2"',
     'const MAX_OPERATIONS = 200',
     'window.fetch = async function observedFetch',
     'sanitizeStatus',
