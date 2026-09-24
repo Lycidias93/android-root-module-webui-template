@@ -178,6 +178,6 @@ Core v0.6.7 removes the global fixed dirty toolbar and the custom focused-contro
 Pin the exact Core 0.7.0 commit and sync the complete manifest including `module/lib/ntfy.sh`. Consumers enabling notifications implement the strict status operation and optional test operation; private provider values never cross the API. Rebuild and repeat repository plus exact-device WebUI acceptance after changing the core pin.
 
 
-## v0.7.1 Android Action PID identity consumers
+## v0.7.2 Android Action PID identity consumers
 
-Core v0.7.1 changes the reusable `module/action.sh` PID identity primitive. Consumers must pin the exact 0.7.1 commit, sync the complete core manifest, rebuild the installable artifact and repeat exact-device Action-button acceptance through the real root-manager/Android launch path. Acceptance must prove that `--print-url` returns promptly, the loopback bootstrap succeeds and the server survives the Action shell lifetime.
+Core v0.7.2 changes the reusable `module/action.sh` PID identity primitive. Consumers must pin the exact 0.7.2 commit, sync the complete core manifest, rebuild the installable artifact and repeat exact-device Action-button acceptance through the real root-manager/Android launch path. Acceptance must prove that `--print-url` returns promptly, the loopback bootstrap succeeds and the server survives the Action shell lifetime.

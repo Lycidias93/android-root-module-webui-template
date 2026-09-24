@@ -42,7 +42,7 @@ keeping imported code and license boundaries explicit.
 ### Drizzy07x / Drizzy11 — Supercharger Pixel 9 Series
 
 - Project: `Drizzy07x/Supercharger_Pixel_9_Series`
-- Pinned source: `be76cbe57d01fa475196b7afb3729b9ad19f0a26`
+- Pinned source: `0132a0ac6e8ba9844b56e11fdc262560a0131012`
 - Contribution: WebUI interaction-race regression scenarios, status-readiness
   gating, duplicate-action prevention and stale-response handling concepts.
 - License: MIT
@@ -50,7 +50,7 @@ keeping imported code and license boundaries explicit.
 ### AshBorn — AshReXcue / AshLooper
 
 - Project: `RipperHybrid/AshLooper`
-- Pinned source: `6db87ffba007560eff443a0330037cd6a2563c2b`
+- Pinned source: `fd50bd7b1c095942c8bbe59122c151fb5aeeeaf3`
 - Contribution: design-review inspiration for global unsaved-change awareness,
   session activity diagnostics and raw-state inspection.
 - License: GPL-3.0; design reference only. No AshLooper JavaScript, CSS, shell

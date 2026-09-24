@@ -97,7 +97,7 @@ Termux Python dependency and fixed-port server are not adopted.
 
 ## Supercharger Pixel 9 Series interaction reliability
 
-Source: `Drizzy07x/Supercharger_Pixel_9_Series@be76cbe57d01fa475196b7afb3729b9ad19f0a26`
+Source: `Drizzy07x/Supercharger_Pixel_9_Series@0132a0ac6e8ba9844b56e11fdc262560a0131012`
 
 Adopted generic patterns:
 
@@ -106,6 +106,7 @@ Adopted generic patterns:
 - a second mutation is rejected while the first mutation is still completing;
 - stale, out-of-order log or status responses must not replace newer UI state;
 - task launch state is released only after the matching completion refresh;
+- browser visibility changes invalidate in-flight cache reads so stale pre-resume data cannot repopulate browser state;
 - regression tests exercise the race windows rather than only static rendering.
 
 The shared implementation keeps the template's loopback HTTP API and does not
@@ -198,7 +199,7 @@ Core v0.4 generalizes a safe pattern needed by return collection, backup/restore
 
 ## AshReXcue / AshLooper observability inspiration
 
-Design reference: `RipperHybrid/AshLooper@6db87ffba007560eff443a0330037cd6a2563c2b`
+Design reference: `RipperHybrid/AshLooper@fd50bd7b1c095942c8bbe59122c151fb5aeeeaf3`
 (GPL-3.0). This was a design review only; no AshLooper JavaScript, CSS, shell
 code, assets or other GPL-covered implementation was imported.
 
