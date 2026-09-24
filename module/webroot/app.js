@@ -13,6 +13,7 @@
     inventoryCache: new Map(),
     inventoryCurrent: "",
     inventorySequence: 0,
+    visibilityGeneration: 0,
     notificationStatus: null,
   };
   const $ = selector => document.querySelector(selector);
@@ -606,6 +607,7 @@
     if (!definition) throw new Error(`Unknown inventory: ${name}`);
     state.inventoryCurrent = name;
     const sequence = ++state.inventorySequence;
+    const visibilityGeneration = state.visibilityGeneration;
     syncInventoryLaunchers();
 
     const cached = state.inventoryCache.get(name);
@@ -624,6 +626,7 @@
 
     try {
       const response = await api(`/api/v1/inventory?name=${encodeURIComponent(name)}`);
+      if (document.hidden || visibilityGeneration !== state.visibilityGeneration) return;
       state.inventoryCache.set(name, { response, loadedAt: Date.now() });
       if (sequence === state.inventorySequence && state.inventoryCurrent === name) {
         renderInventory(response, definition);
@@ -728,11 +731,18 @@
         .catch(error => showError(error));
     });
     document.addEventListener("visibilitychange", () => {
+      state.visibilityGeneration += 1;
+      state.inventorySequence += 1;
       if (document.hidden) {
         stopJobPolling();
-      } else if (state.jobs.some(job => ["queued", "running"].includes(job.status))) {
+        return;
+      }
+      if (state.jobs.some(job => ["queued", "running"].includes(job.status))) {
         refreshJobs().catch(error => showError(error));
         startJobPolling();
+      }
+      if (state.inventoryCurrent && $("#inventoryPanel")?.classList.contains("active")) {
+        loadInventory(state.inventoryCurrent, { force: true }).catch(error => showError(error));
       }
     });
 
