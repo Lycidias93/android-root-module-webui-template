@@ -8,7 +8,7 @@
 | `KOWX712/ksu-webui-demo` | `5ff958423202e9af7675e83e8ce57a34d80ddcd9` | Vanilla JavaScript layout and compatibility concepts | Clean reimplementation informed by upstream |
 | `barsikus007/ksu-webui-module-template` | `4ec624e2514043064d3b50ff5ec585acff4ffc97` | Packaging, multi-manager structure and CI concepts | Clean reimplementation informed by upstream |
 | `Aurora-Nasa-1/AMMF2` | `98d2ef7d0491f6524cee09c958ef239338b49d3c` | Logging, theme, localization and component concepts | Reference only |
-| `Drizzy07x/Supercharger_Pixel_9_Series` | `be76cbe57d01fa475196b7afb3729b9ad19f0a26` | WebUI readiness/busy-state, duplicate-action and stale-response regression patterns | Clean generic adaptation; no Supercharger tuning or device logic imported |
+| `Drizzy07x/Supercharger_Pixel_9_Series` | `0132a0ac6e8ba9844b56e11fdc262560a0131012` | WebUI readiness/busy-state, duplicate-action, stale-response and visibility/cache race regression patterns | Clean generic adaptation; no Supercharger tuning or device logic imported |
 
 Matching license texts for imported/reimplemented MIT-licensed source work are
 retained in `third_party/licenses/`.
@@ -17,7 +17,7 @@ retained in `third_party/licenses/`.
 
 | Upstream | Pinned commit | Role | Code status |
 |---|---|---|---|
-| `RipperHybrid/AshLooper` (AshReXcue) | `6db87ffba007560eff443a0330037cd6a2563c2b` | Global unsaved-change awareness, session activity diagnostics and raw-state inspection concepts | Design reference only; GPL-3.0 code/assets were not imported or copied |
+| `RipperHybrid/AshLooper` (AshReXcue) | `fd50bd7b1c095942c8bbe59122c151fb5aeeeaf3` | Global unsaved-change awareness, session activity diagnostics and raw-state inspection concepts | Design reference only; GPL-3.0 code/assets were not imported or copied |
 | `adivenxnataly/KsuWebUI` | `20342d280a841f8b317603a7eefb1193a95ab626` | Compatibility reference for the `mui.kernelsu.org` WebView asset host, `window.ksu` bridge/module metadata and loopback cleartext host policy | Compatibility/design reference only; GPL-3.0 app code/assets were not imported or copied |
 
 Design-only references do not contribute source files or assets to this MIT
